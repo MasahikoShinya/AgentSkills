@@ -1,18 +1,18 @@
 # ClaudeSkills
 
-Claude Code用のカスタムスキル・サブエージェント集。
+Claude Code および Cowork（Claude Desktop）用のカスタムスキル・サブエージェント集。
+
+> **Claude Code と Cowork はスキル読み込み方式が異なる。** Claude Code は `~/.claude/skills/` の symlink を読み、Cowork は `.skill` パッケージのインストールが必要。詳細は「[Claude Code と Cowork のスキル読み込みの違い](#claude-code-と-cowork-のスキル読み込みの違い重要)」を参照。
 
 ## 構成
 
-### スキル（`~/.claude/skills/` に配置）
+### スキル
 
-メインコンテキストで動作するガイドライン・ワークフロー。
-
-| スキル名 | バージョン | 説明 |
-|----------|------------|------|
-| `test-orchestrator` | v1.1.0 | テスト計画・実行・目視確認を統合管理する司令塔（サブエージェントを呼び出す） |
-| `code-review` | v1.0.0 | Claude Opus + Codex による独立レビュー・クロスレスポンス・統合レポート生成 |
-| `cowork-chrome-launcher` | v1.0.0 | Cowork の Chrome 操作前に専用プロファイルの接続を確認し、未接続なら起動スクリプトで誘導する運用スキル（Mac/Windows 両対応） |
+| スキル名 | バージョン | 説明 | 主な対応 |
+|----------|------------|------|---------|
+| `test-orchestrator` | v1.1.0 | テスト計画・実行・目視確認を統合管理する司令塔（サブエージェントを呼び出す） | Claude Code |
+| `code-review` | v1.0.0 | Claude Opus + Codex による独立レビュー・クロスレスポンス・統合レポート生成 | Claude Code |
+| `cowork-chrome-launcher` | v2.0.0 | Cowork の Chrome 操作で `list_connected_browsers` + `select_browser` による自動接続先固定（Connect クリック不要）。Mac/Windows 両対応 | **Cowork**（Claude Code でも動く） |
 
 ### サブエージェント（`~/.claude/agents/` に配置）
 
@@ -59,25 +59,27 @@ code-review（スキル・メインコンテキスト）
 - Git がインストールされていること
 - code-review スキルを使用する場合: Codex MCP サーバーが設定されていること（[codex-mcp](https://github.com/nicobailon/codex-mcp) 等）
 
-### 複数環境で併用する場合の注意（WSL + Windows Cowork など）
+### Claude Code と Cowork のスキル読み込みの違い（重要）
 
-Claude Code（WSL / Linux / macOS）と Cowork（macOS / Windows）は**スキルを読み込む場所が環境ごとに独立**している。
+このリポジトリのスキルを使う際、**Claude Code（CLI）と Cowork（Claude Desktop アプリ）はスキル読み込みの仕組みが根本的に異なる**ため、それぞれに合わせたインストールが必要。
 
-- Claude Code in WSL → WSL 側の `~/.claude/skills/`
-- Cowork on Windows → Windows ネイティブの `%USERPROFILE%\.claude\skills\`
-- Cowork on macOS / Claude Code on macOS → macOS 側の `~/.claude/skills/`
+| クライアント | スキル読み込み方式 | このリポジトリでのインストール手順 |
+|---|---|---|
+| **Claude Code (CLI / IDE 統合 / Conductor)** | `~/.claude/skills/` 配下のディレクトリ（symlink 可）から読む | このリポジトリを clone して `~/.claude/skills/` に symlink を張る（次節「WSL2 / Linux / macOS」「Windows」参照） |
+| **Cowork (Claude Desktop)** | アプリ本体に `.skill` パッケージをインストールする方式（symlink は読まない） | 各スキルを `.skill` ファイルにパッケージし、Claude Desktop アプリにドラッグ＆ドロップして「Save skill」（後述「Cowork（Claude Desktop）で使う場合」参照） |
 
-同一マシン上で WSL Claude Code と Windows Cowork を併用する場合、**理論上は Windows 側の symlink を `\\wsl.localhost\Ubuntu\...` 経由で WSL 内のリポジトリに向ける**ことも可能だが、Cowork が UNC パス越しにスキルファイルを確実に読めるかは環境依存で保証できない。
+つまり**Cowork で使いたいスキルは、別途 `.skill` ファイル化して個別にインストール**する必要がある。Claude Code 用に symlink を張ってあっても Cowork は読まない。
 
-**確実に動かすには、WSL と Windows でそれぞれ独立に clone して symlink を張る**（このリポジトリを2箇所に clone する）のが推奨。各環境は完全に独立しているため、互いに干渉しない。更新時はそれぞれの環境で `git pull` を叩く。
+#### 複数環境を併用する場合
 
-```
-例：Windows + WSL 併用時の配置
-├── C:\Users\<user>\.claude\skills\ClaudeSkills\        ← Cowork on Windows 用（Windows 側でclone）
-└── \\wsl$\Ubuntu\home\<user>\.claude\skills\ClaudeSkills\  ← Claude Code in WSL 用（WSL 側でclone）
-```
+同一ユーザーが複数環境で同じスキルを使う運用なら、**それぞれの環境で独立に手順を踏む**：
 
-Mac / Linux のみ、もしくは Windows のみの環境であれば、単一 clone で完結する。
+- Mac で Claude Code → Mac 側で clone + symlink
+- Mac で Cowork → Mac の Claude Desktop に `.skill` をインストール
+- Windows で Cowork → Windows の Claude Desktop に `.skill` をインストール
+- WSL で Claude Code → WSL 内で clone + symlink
+
+各環境は独立しているので干渉しない。更新時はそれぞれで pull / 再インストール。
 
 ### WSL2 / Linux / macOS
 
@@ -164,6 +166,101 @@ https://github.com/MasahikoShinya/ClaudeSkills.git リポジトリの cowork-chr
 
 他スキルを追加する時も、`cowork-chrome-launcher` 部分をスキル名に差し替えれば同じ形で使える。
 
+## Cowork（Claude Desktop）で使う場合
+
+Cowork（Claude Desktop アプリ）は `~/.claude/skills/` を読まず、**`.skill` パッケージファイルをアプリに直接インストールする方式**で動く。symlink を張るだけでは Cowork から認識されない。各スキルを個別に `.skill` ファイル化して Cowork にインストールする手順が必要。
+
+### スキルを `.skill` にパッケージする
+
+このリポジトリのスキルフォルダ（例：`cowork-chrome-launcher`）を zip 化して拡張子を `.skill` にすれば、Cowork にインストール可能なパッケージになる。
+
+**macOS / Linux / WSL：**
+
+```bash
+cd ~/.claude/skills/ClaudeSkills
+zip -r cowork-chrome-launcher.skill cowork-chrome-launcher -x "*.DS_Store" -x "*/__pycache__/*"
+# 出力: ~/.claude/skills/ClaudeSkills/cowork-chrome-launcher.skill
+```
+
+WSL から Windows の Cowork に渡したい場合は、出力した `.skill` を Windows 側にコピー：
+
+```bash
+cp cowork-chrome-launcher.skill /mnt/c/Users/<ユーザー名>/Desktop/
+```
+
+**Windows ネイティブ（PowerShell）：**
+
+```powershell
+Compress-Archive `
+  -Path "$env:USERPROFILE\.claude\skills\ClaudeSkills\cowork-chrome-launcher" `
+  -DestinationPath "$env:USERPROFILE\Desktop\cowork-chrome-launcher.zip" -Force
+Rename-Item "$env:USERPROFILE\Desktop\cowork-chrome-launcher.zip" "cowork-chrome-launcher.skill"
+```
+
+**skill-creator スキルを使う場合（インストール済みなら）：**
+
+skill-creator が同じ環境にインストールされていれば、`package_skill.py` で同等のことができる：
+
+```bash
+cd ~/.claude/skills/skill-creator
+python3 -m scripts.package_skill ~/.claude/skills/ClaudeSkills/cowork-chrome-launcher ~/Desktop
+```
+
+### Cowork にインストールする
+
+1. 出来上がった `.skill` ファイルを **Claude Desktop アプリ**（Cowork モード）にドラッグ＆ドロップ
+2. チャットに「**Save skill**」ボタンが出るのでクリック
+3. インストール完了
+
+または、Cowork のチャットでファイルを presented_files 経由で出してもらって「Save skill」ボタンから入れる方法もある。
+
+### 反映と動作確認
+
+1. **Claude Desktop アプリを完全終了**（Mac: Cmd+Q、Windows: タスクトレイから「終了」）
+2. 再起動
+3. 新規 Cowork セッションを開いて「使えるスキル一覧を教えて」で対象スキルが入っているか確認
+
+### 更新時の手順
+
+このリポジトリを `git pull` で更新した後、Cowork 側にも反映するには：
+
+1. `.skill` を再パッケージ（上記コマンドを再実行）
+2. Cowork で再インストール（古い同名スキルは上書きされる）
+3. Claude Desktop 再起動
+
+### Claude Code にこの作業を任せる場合
+
+`.skill` パッケージング＋ Windows へのコピーまでを Claude Code に委ねるプロンプト例：
+
+**WSL の Claude Code に渡す場合（→ Windows Cowork 用）：**
+
+```
+~/.claude/skills/ClaudeSkills の cowork-chrome-launcher スキルを、Windows の Cowork（Claude Desktop）に
+インストールできる .skill ファイル形式にパッケージしてほしい。
+
+手順：
+1. cd ~/.claude/skills/ClaudeSkills && git pull origin main で最新化
+2. cowork-chrome-launcher フォルダを zip 化して .skill 形式にする
+   （例: zip -r cowork-chrome-launcher.skill cowork-chrome-launcher -x "*.DS_Store" -x "*/__pycache__/*"）
+3. 出来上がった cowork-chrome-launcher.skill を /mnt/c/Users/<Windowsユーザー名>/Desktop/ にコピー
+4. 完了後、「Windows のデスクトップに .skill を置いた。Claude Desktop アプリにドラッグ＆ドロップして
+   Save skill → アプリ再起動 → 新規セッションで動作確認」と次の手順を案内してほしい
+```
+
+**Windows ネイティブの Claude Code（または PowerShell ベース）：**
+
+```
+%USERPROFILE%\.claude\skills\ClaudeSkills の cowork-chrome-launcher スキルを、Cowork に
+インストールできる .skill ファイルにパッケージしてほしい。
+
+手順：
+1. cd $env:USERPROFILE\.claude\skills\ClaudeSkills; git pull origin main で最新化
+2. PowerShell で cowork-chrome-launcher フォルダを Compress-Archive で zip 化
+3. 拡張子を .skill にリネーム
+4. デスクトップに置いて、Claude Desktop アプリへのドラッグ＆ドロップ → Save skill → 再起動 → 動作確認
+   までの手順を案内してほしい
+```
+
 ## セットアップの確認
 
 ```bash
@@ -190,6 +287,8 @@ ls -la ~/.claude/agents/
 
 ## 更新
 
+### Claude Code 用（symlink 経由）
+
 ```bash
 # WSL / Linux / macOS
 cd ~/.claude/skills/ClaudeSkills
@@ -202,7 +301,17 @@ cd $env:USERPROFILE\.claude\skills\ClaudeSkills
 git pull origin main
 ```
 
-WSL と Windows Cowork を併用している場合は**両方の clone で** `git pull` が必要（それぞれが独立した作業コピー）。
+symlink で繋がっているので、`git pull` だけで `~/.claude/skills/<skill>` 側にも変更が反映される。Claude Code を再起動して新しいスキルを読み込ませる。
+
+### Cowork 用（`.skill` 再インストール）
+
+リポジトリを `git pull` で更新しても、**Cowork 側のスキルは自動更新されない**。`.skill` を再パッケージして Claude Desktop に再インストールする必要がある：
+
+1. 「[Cowork（Claude Desktop）で使う場合](#coworkclaude-desktopで使う場合)」セクションの手順で `.skill` を再パッケージ
+2. Claude Desktop アプリにドラッグ＆ドロップ → 「Save skill」（同名スキルが上書きされる）
+3. Claude Desktop を再起動して新版を読み込ませる
+
+複数環境で使っている場合は、それぞれの環境で個別に更新する。
 
 ## コミュニティスキル（オプション）
 
@@ -269,16 +378,20 @@ User: セキュリティ観点でレビューして
 
 ---
 
-### cowork-chrome-launcher (v1.0.0)
+### cowork-chrome-launcher (v2.0.0)
 
-Cowork の Chrome 操作前に Cowork 専用 Chrome プロファイルの接続状態を確認し、未接続なら同梱スクリプトで起動するようユーザーを誘導する運用スキル。Chrome Sync によるクロスデバイス誤接続、Cowork プロファイルが閉じている状態での接続失敗、拡張サービスワーカーの切断など、Cowork の Chrome 制御で頻発するパターンを検知して回避する。
+Cowork で Chrome 操作する際に、`list_connected_browsers` で接続中の Chrome 一覧を取得し、`isLocal=true`（Cowork が動いているこの PC のローカル Chrome）でフィルタした上で `select_browser` で deviceId 直指定で固定する、**ユーザー介入ゼロの自動接続先固定スキル**。Chrome Sync によるクロスデバイス誤接続を構造的に防ぎつつ、Connect ボタンクリックや名前入力ダイアログといった煩わしい UI を一切出さない。Cowork プロファイルが閉じている場合は Terminal コマンド／Dock ショートカット／Finder ダブルクリックで起動するようユーザーを誘導する。
+
+**v1 → v2 の主な変更:**
+- v1：`switch_browser` でブロードキャスト → ユーザーが Connect ボタンを押す（毎セッション操作必要）
+- v2：`list_connected_browsers` + `select_browser` で deviceId 直指定（**操作不要、完全自動**）
 
 **同梱物:**
 | 内容 | 説明 |
 |------|------|
-| `scripts/open-cowork-chrome.command` | Mac 用起動スクリプト（Cowork プロファイルで Chrome を起動） |
+| `scripts/open-cowork-chrome.command` | Mac 用起動スクリプト（Local State から Cowork プロファイルを case-insensitive に検出して起動） |
 | `scripts/open-cowork-chrome.bat` | Windows 用起動スクリプト（同上） |
-| `references/setup.md` | Cowork 専用プロファイルの作成、拡張のインストール、自動起動設定の手順書 |
+| `references/setup.md` | Cowork 専用プロファイルの作成、拡張のインストール、自動起動・Dock ショートカット設定、トラブルシューティング |
 
 **使用例:**
 ```
@@ -291,7 +404,8 @@ User: Cowork プロファイルってどう作るの？
 
 **前提条件:**
 - Cowork 専用の Chrome プロファイル（Google アカウント未ログイン）が作成済み
-- そのプロファイルに `Claude for Chrome` 拡張がインストール済み
+- そのプロファイルに `Claude for Chrome` 拡張がインストール・サインイン済み
+- Cowork で使う場合は `.skill` 形式でパッケージして Claude Desktop にインストール
 - セットアップ未完了の場合は `references/setup.md` を参照
 
 詳細は [cowork-chrome-launcher/SKILL.md](./cowork-chrome-launcher/SKILL.md) を参照。
