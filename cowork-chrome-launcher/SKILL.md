@@ -1,6 +1,6 @@
 ---
 name: cowork-chrome-launcher
-description: Cowork で Chrome / ブラウザ操作が必要になったら、実作業の前に必ずこのスキルを使うこと。このスキルは (1) `list_connected_browsers` で接続中の Chrome 一覧を取得し、(2) `isLocal: true`（Cowork が動いている PC のローカル Chrome）を自動判別して、(3) `select_browser` で deviceId 直指定で固定する、という**ユーザー介入ゼロの接続先固定フロー**を提供する。これにより Chrome Sync によるクロスデバイス誤接続を構造的に防ぎつつ、Connect ボタンクリックや名前入力ダイアログといった煩わしい UI を一切出さずに済む。ユーザーが「Chrome で」「ブラウザで」「〇〇のサイトを開いて」「ウェブページを読んで」「スクショを撮って」「フォームに入力して」「この URL を開いて」など、Cowork のブラウザ操作を必要とする依頼をした場合、**実作業の前に必ずこのスキルを発動**すること。また「Cowork で Chrome が動かない」「プロファイルの作り方」「別 PC でも Cowork を使いたい」など環境構築系の質問が出たときも、同梱の `references/setup.md` を案内するためにこのスキルを使うこと。Claude はサンドボックスから Chrome を直接起動できない前提で、Chrome の起動はユーザーの Terminal 実行 / Dock ショートカットクリック / Login Items 自動起動に委ねるが、接続先解決はこのスキルが完全自動で担う。
+description: Cowork で Chrome / ブラウザ操作が必要になったら、実作業の前に必ずこのスキルを使うこと。このスキルは (1) `list_connected_browsers` で接続中の Chrome 一覧を取得し、(2) `isLocal=true`（Cowork が動いている PC のローカル Chrome）を自動判別して、(3) `select_browser` で deviceId 直指定で固定する、という**ユーザー介入ゼロの接続先固定フロー**を提供する。これにより Chrome Sync によるクロスデバイス誤接続を構造的に防ぎつつ、Connect ボタンクリックや名前入力ダイアログといった煩わしい UI を一切出さずに済む。ユーザーが「Chrome で」「ブラウザで」「〇〇のサイトを開いて」「ウェブページを読んで」「スクショを撮って」「フォームに入力して」「この URL を開いて」など、Cowork のブラウザ操作を必要とする依頼をした場合、**実作業の前に必ずこのスキルを発動**すること。また「Cowork で Chrome が動かない」「プロファイルの作り方」「別 PC でも Cowork を使いたい」など環境構築系の質問が出たときも、同梱の references/setup.md を案内するためにこのスキルを使うこと。Claude はサンドボックスから Chrome を直接起動できない前提で、Chrome の起動はユーザーの Terminal 実行 / Dock ショートカットクリック / Login Items 自動起動に委ねるが、接続先解決はこのスキルが完全自動で担う。
 ---
 
 # Cowork Chrome Launcher (v2)
