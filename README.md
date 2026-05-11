@@ -418,6 +418,10 @@ User: Cowork プロファイルってどう作るの？
 
 - **cowork-chrome-launcher v1.0.0**: Cowork の Chrome 操作前にプロファイル接続を確認・誘導する運用スキルを追加
 
+### 2026-05-11
+
+- **e2e-visual-verify**: カーソル可視化を実証済み実装に同期。赤い矢印(#FF3333) → 白フィル+黒輪郭の矢印SVG + 青いリップルクリック演出。`injectCursor`/`ensureCursor` → `attachCursorOverlay`（`addInitScript`でSPA遷移後も自動再注入）
+
 ### 2026-04-08
 
 - **e2e-visual-verify**: プレイヤー生成を固定スクリプト（`scripts/generate-player.ts`）に変更。毎回同一デザインのHTMLを出力
