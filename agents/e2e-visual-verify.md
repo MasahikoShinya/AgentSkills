@@ -361,11 +361,14 @@ test.describe(SCENARIO, () => {
 
 ### スクリプトの配置
 
-ClaudeSkillsリポジトリの `scripts/generate-player.ts` が正規の実装。
-プロジェクトでの使用時は、テスト実行ディレクトリに `generate-player.ts` をコピーして配置する。
+ClaudeSkillsリポジトリの `test-orchestrator/generate-player.ts` が正規の実装。
+`~/.claude/skills/test-orchestrator/generate-player.ts` から **毎回上書きコピー** してテスト実行ディレクトリに配置する（古いコピーが残っていても必ず最新版を反映させるため）。
 
 ```bash
-# 実行方法
+# 配置（毎回上書き）
+cp -f ~/.claude/skills/test-orchestrator/generate-player.ts ./generate-player.ts
+
+# 実行
 npx tsx generate-player.ts
 ```
 
@@ -378,20 +381,21 @@ npx tsx generate-player.ts
 
 ### プレイヤーの仕様（スクリプトに固定実装済み）
 
-- **レイアウト**: 動画 → 速度コントロール → ショートカット説明 → シナリオ一覧（縦並び）
-- **シナリオ一覧**: クリックで動画切り替え、アクティブシナリオは左ボーダー（#e94560）で表示
-- **スクリーンショット**: 各シナリオの下に 📷 付きで表示、クリックでモーダル拡大（Escで閉じる）
-- **デフォルト再生速度**: 0.5x
-- **速度切り替え**: 0.25x, 0.5x, 1x, 2x
-- **キーボードショートカット**: ← → 5秒スキップ、[ ] 速度変更、Space 再生/停止、Esc モーダル閉じ
-- **ダークテーマ**: body #0f0f23、カード #1a1a2e、hover #2a2a4a、アクセント #e94560、モーダル背景 rgba(10,10,30,0.92)
+- **レイアウト**: カードベース（バッジ/カテゴリ/シナリオ名のヘッダ → 左にメタ表 + 右に動画ブロック → スクリーンショットサムネ行）
+- **タブ**: `results.json` の `describe` ブロックでカテゴリ自動分類（複数カテゴリ時のみタブ表示、単一なら非表示）
+- **メタ表**: 結果（PASS/FAIL + 所要時間）、動画パス、スクショ枚数 + `test.info().annotations` の任意項目
+- **動画**: 各カードに小サイズで埋め込み、`🔍 拡大表示` ボタンで全画面モーダル
+- **速度コントロール**: カード単位とモーダル単位で独立（0.25x / 0.5x / 1x / 2x、デフォルト 0.5x）
+- **スクリーンショット**: カード下部に 📷 サムネ行で表示、クリックで画像モーダル
+- **キーボードショートカット（モーダル中のみ）**: ← → 5秒スキップ、[ ] 速度変更、Space 再生/停止、Esc 閉じる
+- **ダークテーマ**: bg #1a1a1a、card #242424、accent #4ec9b0、PASS #2ea043、FAIL #d73a49
 
-**重要**: プレイヤーのデザインを変更する場合は `scripts/generate-player.ts` を修正すること。エージェント定義への記述変更だけでは反映されない。
+**重要**: プレイヤーのデザインを変更する場合は `test-orchestrator/generate-player.ts` を修正すること。エージェント定義への記述変更だけでは反映されない。
 
 ## Execution Steps
 
 1. プロジェクト内に `demo-utils.ts` が存在するか確認。なければ配置。
-2. プロジェクト内に `generate-player.ts` が存在するか確認。なければ `scripts/generate-player.ts` からコピーして配置。
+2. **毎回** `cp -f ~/.claude/skills/test-orchestrator/generate-player.ts ./generate-player.ts` で最新版を上書きコピーする（古いコピーが残っていてもデザインを最新に揃える）。
 3. 対象テストファイルに動画録画設定（`test.use({ video: ... })`）が入っているか確認。なければ追加。
 4. **テスト冒頭に `showTitle()` を必ず挿入** — シナリオ名と検証項目一覧（空チェックボックス）を動画に録画する。
 5. **テスト末尾に `showResult()` を必ず挿入** — 各検証項目の結果（成功=✓入り緑、失敗=空の赤枠）を動画に録画する。
@@ -408,7 +412,13 @@ npx tsx generate-player.ts
 
 ### プレイヤー生成（必須）
 
-テスト完了後、**必ず `npx tsx generate-player.ts` を実行**して player.html を生成する。
+テスト完了後、**必ず最新版を上書きコピーしてから `npx tsx generate-player.ts` を実行**して player.html を生成する:
+
+```bash
+cp -f ~/.claude/skills/test-orchestrator/generate-player.ts ./generate-player.ts
+npx tsx generate-player.ts
+```
+
 サブエージェントが独自にHTMLを書くことは禁止。スクリプトの固定テンプレートを使うこと。
 
 ### ブラウザオープン（必須）
