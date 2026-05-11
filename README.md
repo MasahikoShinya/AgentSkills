@@ -420,6 +420,8 @@ User: Cowork プロファイルってどう作るの？
 
 ### 2026-05-11
 
+- **scripts/generate-player.ts**: プレイヤーHTMLを全面リニューアル。カードベースレイアウト + PASS/FAIL バッジ + describe ブロックによる自動タブ分類 + Playwright `test.info().annotations` のメタ表示対応。カードと拡大モーダル両方に独立した速度コントロール（0.25/0.5/1/2x）を配置
+- **scripts/deploy-skills.sh**: このリポジトリのスキル/エージェントを `~/.claude/skills/` と `~/.claude/agents/` にシンボリックリンクで配置するセットアップスクリプトを追加。冪等
 - **e2e-visual-verify**: カーソル可視化を実証済み実装に同期。赤い矢印(#FF3333) → 白フィル+黒輪郭の矢印SVG + 青いリップルクリック演出。`injectCursor`/`ensureCursor` → `attachCursorOverlay`（`addInitScript`でSPA遷移後も自動再注入）
 
 ### 2026-04-08
