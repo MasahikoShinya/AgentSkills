@@ -326,14 +326,19 @@ video.prompt-video { width:100%; max-width:360px; background:#000; border-radius
 .screenshot-thumb { display:flex; align-items:center; gap:5px; padding:5px 10px; background:#1f1f1f; border-radius:4px; cursor:pointer; font-size:11px; color:var(--muted); transition:all 0.15s; }
 .screenshot-thumb:hover { background:#2a2a2a; color:var(--accent); }
 .screenshot-thumb::before { content:'📷'; }
-.modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:1000; align-items:center; justify-content:center; flex-direction:column; gap:14px; }
+.modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:1000; align-items:center; justify-content:center; flex-direction:column; gap:12px; padding:72px 24px 24px; overflow:auto; }
 .modal.open { display:flex; }
-.modal video { width:90vw; max-width:1600px; max-height:75vh; background:#000; }
-.modal-img { max-width:90vw; max-height:90vh; }
+.modal video { width:min(90vw, 1600px); max-height:calc(100vh - 200px); background:#000; }
+.modal-img { max-width:90vw; max-height:calc(100vh - 160px); }
 .modal-controls { display:flex; gap:8px; align-items:center; }
 .modal-close { position:absolute; top:18px; right:24px; width:42px; height:42px; font-size:22px; color:white; background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.3); border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; }
 .modal-close:hover { background:rgba(220,60,60,0.85); }
 .modal-title { position:absolute; top:24px; left:30px; right:90px; color:white; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none; }
+.modal-nav { position:absolute; top:50%; transform:translateY(-50%); width:48px; height:48px; font-size:24px; color:white; background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.3); border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.modal-nav:hover { background:rgba(78,201,176,0.85); color:black; }
+.modal-prev { left:24px; }
+.modal-next { right:24px; }
+.modal-caption { color:#ccc; font-size:12px; }
 .shortcuts-help { color:var(--muted); font-size:11px; }
 kbd { background:#2a2a2a; padding:2px 6px; border-radius:3px; border:1px solid var(--border); font-family:monospace; font-size:10px; color:var(--text); }
 </style>
@@ -369,7 +374,10 @@ ${panels}
 
 <div class="modal" id="image-modal">
   <button class="modal-close" id="image-modal-close">✕</button>
+  <button class="modal-nav modal-prev" id="image-modal-prev" title="前へ (←)">‹</button>
+  <button class="modal-nav modal-next" id="image-modal-next" title="次へ (→)">›</button>
   <img class="modal-img" id="modal-image" src="" alt="">
+  <div class="modal-caption" id="modal-caption"></div>
 </div>
 
 <script>
@@ -436,24 +444,55 @@ const closeVideoModal = () => { videoModal.classList.remove('open'); modalVideo.
 modalClose.addEventListener('click', closeVideoModal);
 videoModal.addEventListener('click', (e) => { if (e.target === videoModal) closeVideoModal(); });
 
-// 画像モーダル
+// 画像モーダル — シナリオ内で前/次に遷移、端で閉じる
 const imageModal = document.getElementById('image-modal');
 const modalImage = document.getElementById('modal-image');
+const modalCaption = document.getElementById('modal-caption');
 const imageModalClose = document.getElementById('image-modal-close');
+const imageModalPrev = document.getElementById('image-modal-prev');
+const imageModalNext = document.getElementById('image-modal-next');
+let currentThumb = null;
+
+const showImage = (thumb) => {
+  currentThumb = thumb;
+  modalImage.src = thumb.dataset.src;
+  modalCaption.textContent = thumb.textContent || '';
+};
+const closeImageModal = () => { imageModal.classList.remove('open'); currentThumb = null; };
+const goPrev = () => {
+  if (!currentThumb) return;
+  const prev = currentThumb.previousElementSibling;
+  if (prev && prev.classList.contains('screenshot-thumb')) showImage(prev);
+  else closeImageModal();
+};
+const goNext = () => {
+  if (!currentThumb) return;
+  const next = currentThumb.nextElementSibling;
+  if (next && next.classList.contains('screenshot-thumb')) showImage(next);
+  else closeImageModal();
+};
+
 document.querySelectorAll('.screenshot-thumb').forEach((thumb) => {
   thumb.addEventListener('click', () => {
-    modalImage.src = thumb.dataset.src;
+    showImage(thumb);
     imageModal.classList.add('open');
   });
 });
-const closeImageModal = () => imageModal.classList.remove('open');
 imageModalClose.addEventListener('click', closeImageModal);
+imageModalPrev.addEventListener('click', (e) => { e.stopPropagation(); goPrev(); });
+imageModalNext.addEventListener('click', (e) => { e.stopPropagation(); goNext(); });
 imageModal.addEventListener('click', (e) => { if (e.target === imageModal) closeImageModal(); });
 
-// キーボードショートカット (動画モーダル開いている時のみ)
+// キーボードショートカット
 const speeds = [0.25, 0.5, 1, 2];
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { closeVideoModal(); closeImageModal(); return; }
+  // 画像モーダル開いている時
+  if (imageModal.classList.contains('open')) {
+    if (e.key === 'ArrowLeft') { goPrev(); return; }
+    if (e.key === 'ArrowRight') { goNext(); return; }
+  }
+  // 動画モーダル開いている時
   if (!videoModal.classList.contains('open')) return;
   if (e.key === 'ArrowLeft') { modalVideo.currentTime -= 5; }
   else if (e.key === 'ArrowRight') { modalVideo.currentTime += 5; }

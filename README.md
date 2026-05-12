@@ -464,6 +464,11 @@ User: Cowork プロファイルってどう作るの？
 
 - **cowork-chrome-launcher v1.0.0**: Cowork の Chrome 操作前にプロファイル接続を確認・誘導する運用スキルを追加
 
+### 2026-05-12
+
+- **generate-player.ts**: 画像モーダルに前/次ナビゲーションを追加（‹ › ボタン + ← → キー）。シナリオ内のスクリーンショットを順番に閲覧でき、先頭で「前へ」または末尾で「次へ」を選ぶと自動でモーダルを閉じる
+- **generate-player.ts**: モーダル動画の下端が切れる問題を修正。`max-height` を `calc(100vh - 200px)` に変更し、スピードボタン/ショートカット表示分の領域を確保。モーダルに `padding` と `overflow:auto` を追加
+
 ### 2026-05-11
 
 - **generate-player.ts**: プレイヤーHTMLを全面リニューアル。カードベースレイアウト + PASS/FAIL バッジ + describe ブロックによる自動タブ分類 + Playwright `test.info().annotations` のメタ表示対応。カードと拡大モーダル両方に独立した速度コントロール（0.25/0.5/1/2x）を配置
