@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+
+echo "[AgentSkills][HOOK][START] pre-commit"
+if "$SCRIPT_DIR/../gates/pre-commit-gate.sh"; then
+  echo "[AgentSkills][HOOK][PASS] pre-commit"
+else
+  rc=$?
+  echo "[AgentSkills][HOOK][BLOCKER] pre-commit" >&2
+  echo "Commit: aborted" >&2
+  exit "$rc"
+fi

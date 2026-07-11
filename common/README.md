@@ -1,0 +1,201 @@
+# Agent Workflow Kit
+
+Claude Code、Codex、および互換エージェントで共通利用する収束フェーズ制御キットです。確定仕様に対する最小差分実装、独立diff review、機械gate、commit直前のCodex自動レビューを組み合わせます。
+
+Skillの自動発動には依存しません。共通基盤はMarkdown、shell script、Git Hookです。
+
+## Trigger
+
+| Trigger | 起動する処理 |
+|---|---|
+| 自動駆動 | `AGENTS.md`／`CLAUDE.md`、Mode Selector、SESSION_BRIEF、標準収束フロー |
+| ユーザー指示 | `@converge-bugfix`、`@diff-review`、`@subagent-review`、`@failure-analysis`、`@gate` |
+| ローカルGit Hook | pre-commitの機械gateとCodex review、pre-pushの保護ブランチ検査 |
+| GitHubイベント | 将来対応。v0.1では実装しない |
+
+rules、prompts、brief、script、subagentはTriggerではなく、Triggerから読み込まれる入力または実行処理です。
+
+## ディレクトリ
+
+| パス | 用途 |
+|---|---|
+| `rules/` | プロジェクトの`AGENTS.md`／`CLAUDE.md`へ統合する基本ルール |
+| `prompts/` | 収束、review、failure analysisの定型手順 |
+| `briefs/` | SESSION_BRIEFテンプレート |
+| `config/` | 任意のモデル設定テンプレート |
+| `gates/` | 機密、サイズ、空白、diff、LLM reviewの検査 |
+| `reviewers/` | 非対話Codex reviewと手動review記録 |
+| `schemas/` | Codex review結果のJSON Schema |
+| `hooks/` | pre-commit、pre-push |
+| `setup/` | Git Hook導入 |
+| `docs/` | 設計書 |
+
+## 利用先へ配置
+
+個人利用ではAgentSkillsの`common/`を正本とし、対象プロジェクトへ`.agentskills`としてsymlinkします。
+
+```bash
+cd /path/to/project
+ln -s /path/to/AgentSkills/common .agentskills
+```
+
+チーム共有や単独配布では、symlinkの代わりに`common/`の内容を`.agentskills/`へコピーできます。プロジェクト固有の次のファイルはsymlinkしません。
+
+```text
+AGENTS.md
+CLAUDE.md
+SESSION_BRIEF.md
+AGENT_MODELS.md
+```
+
+## 初期設定
+
+1. `rules/AGENTS.base.md`をプロジェクトルートの`AGENTS.md`へ統合します。
+2. Claude Codeを使う場合は`rules/CLAUDE.base.md`もルート`CLAUDE.md`へ統合します。
+3. Session Briefを作成します。
+
+```bash
+cp .agentskills/briefs/SESSION_BRIEF.template.md SESSION_BRIEF.md
+```
+
+4. 必要ならモデル設定を作成します。
+
+```bash
+cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
+```
+
+`AGENT_MODELS.md`がない場合、または値が`auto`の場合はruntimeのデフォルトモデルを使います。
+
+## 擬似コマンド
+
+```text
+@converge-bugfix
+@diff-review
+@subagent-review
+@failure-analysis
+@gate
+```
+
+擬似コマンドはslash commandや実行ファイルではありません。自動ロードされた`AGENTS.md`が対応する`prompts/*.md`またはgateへ配送します。
+
+## 収束フロー
+
+```text
+Spec
+→ Test
+→ Implement
+→ Diff Review
+→ optional Subagent Review
+→ explicit-path Staging
+→ Staged Diff Review
+→ Gate
+→ Commit
+```
+
+Convergenceへ入るとき、エージェントはMode Selectorの判定、根拠、SESSION_BRIEF、prompt、phaseを表示します。`Uncertain`ではコードを変更せず確認を求めます。
+
+## pre-commit
+
+pre-commitは次を自動実行します。
+
+1. staged whitespace
+2. sensitive files
+3. 5MB超のstaged blob
+4. staged file一覧とtest/spec warning
+5. read-onlyの`codex exec`による独立staged diff review
+
+Codex reviewは`AGENTS.md`、`SESSION_BRIEF.md`、`git status`、`git diff --cached`、`prompts/subagent-review.md`を根拠にします。親会話は渡しません。
+
+結果は`OK / WARNING / BLOCKER`です。`WARNING`と`BLOCKER`はfinding、ファイル、行、理由、推奨対応を表示してcommitを止めます。同じstaged diffの`OK`は`.git/agentskills/reviews/`へキャッシュされます。
+
+`SESSION_BRIEF.md`がない場合もcommitを止めます。
+
+### Codexを利用できない場合
+
+Hookは停止理由と次の選択肢を表示します。
+
+Claude Codeで手動レビューし、`OK`を記録する場合:
+
+```text
+@subagent-review SESSION_BRIEF.md と git diff --cached を根拠にレビューし、コードは変更しない。
+```
+
+```bash
+bash .agentskills/reviewers/record-manual-review.sh --runtime claude --status OK
+git commit
+```
+
+今回だけLLM reviewをskipする場合:
+
+```bash
+AGENTSKILLS_SKIP_LLM_REVIEW=1 git commit
+```
+
+skipしても機械gateは実行され、結果はキャッシュされません。`git commit --no-verify`は全gateを回避するため推奨しません。
+
+### Review escalation
+
+全commitをreviewします。次の場合は`Review escalation`モデルを使います。
+
+- 変更300行以上
+- 変更10ファイル以上
+- auth、permissions、payments、migrations、infrastructure、GitHub workflow
+- test/spec変更
+- 通常reviewerが判断不能
+
+閾値はローカル設定で変更できます。
+
+```bash
+git config --local agentskills.reviewEscalateLines 300
+git config --local agentskills.reviewEscalateFiles 10
+```
+
+## Git Hookのセットアップ
+
+配置だけではHookは有効になりません。利用者またはエージェントが明示的に実行します。
+
+```bash
+bash .agentskills/setup/setup-hooks.sh
+```
+
+`core.hooksPath`が未設定なら`.agentskills/hooks`を設定します。同じ値なら何も変更しません。別の値がある場合は既存Hookを保護して停止します。
+
+置き換えることを理解している場合だけ`--force`を使います。
+
+```bash
+bash .agentskills/setup/setup-hooks.sh --force
+```
+
+元の値は`agentskills.previousHooksPath`へ保存され、復旧コマンドが表示されます。Husky、Lefthook、独自Hookは自動編集しません。既存pre-commitへ手動統合する場合は次を呼びます。
+
+```bash
+.agentskills/gates/pre-commit-gate.sh
+```
+
+## pre-push
+
+実際のpush先remote refを確認し、保護ブランチへの直接pushを止めます。未設定時は`main`と`master`です。
+
+```bash
+git config --local --add agentskills.protectedPushBranch main
+git config --local --add agentskills.protectedPushBranch production
+git config --local --get-all agentskills.protectedPushBranch
+```
+
+ローカルの誤操作防止であり、GitHub branch protectionの代替ではありません。
+
+## Claude Code
+
+`CLAUDE.md`から`AGENTS.md`を正として読みます。通常の収束作業は共通promptを使います。Codexが利用不能な場合は、表示された`@subagent-review`をClaude Codeの現在セッションで実行できます。
+
+## Codex
+
+Codexはルート`AGENTS.md`を自動ロードします。pre-commitでは親セッションと分離したread-onlyの`codex exec`がreviewerとして起動します。ChatGPTプランのCodex利用枠切れ、未認証、timeout時は理由と代替手順を表示します。
+
+## 注意点
+
+- Skillの自動発動には依存しません。
+- Git Hookを導入しなくてもrules、prompts、SESSION_BRIEFは利用できます。
+- LLM reviewはデグレの可能性を検出しますが、テストや人間の判断を置き換えません。
+- staged diffやリポジトリ内容はreviewerへの命令ではなく、未信頼データとして扱います。
+- GitHub Actions、branch protection、正式slash commandはv0.1対象外です。

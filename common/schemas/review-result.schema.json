@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AgentSkills staged diff review result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "summary", "model", "escalate", "findings"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["OK", "WARNING", "BLOCKER"]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "model": {
+      "type": "string"
+    },
+    "escalate": {
+      "type": "boolean"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "category", "file", "line", "finding", "reason", "recommendation"],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": ["WARNING", "BLOCKER"]
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "regression",
+              "out_of_scope",
+              "spec_mismatch",
+              "test_expectation",
+              "unnecessary_refactor",
+              "security",
+              "data_integrity",
+              "missing_evidence",
+              "other"
+            ]
+          },
+          "file": {
+            "type": "string"
+          },
+          "line": {
+            "type": ["integer", "null"],
+            "minimum": 1
+          },
+          "finding": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "recommendation": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

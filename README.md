@@ -519,3 +519,9 @@ User: Cowork プロファイルってどう作るの？
 ## ライセンス
 
 MIT License
+
+## Agent Workflow Kit / Common Rules
+
+Claude Code / Codex 共通で使えるエージェント運用ルール、収束フェーズ用プロンプト、Git Hook、gate script を `common/` に追加しています。
+
+詳細は `common/README.md` と `common/docs/design.md` を参照してください。
