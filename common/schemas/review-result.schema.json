@@ -24,7 +24,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["severity", "category", "file", "line", "finding", "reason", "recommendation"],
+        "required": ["severity", "category", "file", "line", "evidence", "finding", "reason", "recommendation"],
         "properties": {
           "severity": {
             "type": "string",
@@ -50,6 +50,10 @@
           "line": {
             "type": ["integer", "null"],
             "minimum": 1
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1
           },
           "finding": {
             "type": "string",

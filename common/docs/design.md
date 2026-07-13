@@ -367,6 +367,8 @@ AgentSkills/
       check-large-files.sh
       check-diff-basic.sh
       check-llm-review.sh
+    lib/
+      review-common.sh
     reviewers/
       review-staged-diff.sh
       record-manual-review.sh
@@ -377,6 +379,8 @@ AgentSkills/
       pre-push
     setup/
       setup-hooks.sh
+    tests/
+      run-tests.sh
 ```
 
 ### 5.1 既存部分
@@ -734,7 +738,7 @@ Recommended action:
 Commit: aborted
 ```
 
-複数のfindingがある場合は、`BLOCKER`、`WARNING`の順で全件を表示する。`OK`の場合も、使用runtime、モデル、diff hash、レビュー要約、最終結果を表示する。
+複数のfindingがある場合は、`BLOCKER`、`WARNING`の順で全件を表示する。各findingには具体的なevidenceを必須とする。top-level statusはfindingの最大severityと一致しなければならず、矛盾した結果は`FAIL`としてcommitを停止する。`OK`の場合も、使用runtime、モデル、diff hash、context fingerprint、レビュー要約、最終結果を表示する。
 
 判定後の動作:
 
@@ -767,7 +771,7 @@ Mechanical gate checks will still run.
 
 `AGENTSKILLS_SKIP_LLM_REVIEW=1` はLLM reviewだけを1回skipし、機密、巨大ファイル、空白などの機械的gateは実行する。skipはキャッシュせず、`SKIP`、理由、diff hashを目立つ形で表示する。`git commit --no-verify` は全gateを回避するため、案内しない。
 
-staged diffのhashと `OK` 結果は `.git/agentskills/reviews/` に保存する。同一hashの有効な `OK` があれば再利用し、staged diffが変わった場合は自動的に再レビューする。キャッシュを使用した場合も、その事実、diff hash、元のreview結果を表示する。
+`OK`結果は `.git/agentskills/reviews/<context-fingerprint>/` に保存する。context fingerprintはstaged diffだけでなく、SESSION_BRIEF、AGENTS.md、AGENT_MODELS.md、review prompt、JSON Schema、review/gate script、リスク判定、閾値、通常reviewかescalation reviewかを含む内容hashとする。モデル別の自動reviewとruntime別の手動reviewは別ファイルへ保存する。これらの入力が変われば同じdiffでも再レビューする。キャッシュ使用時も、その事実、diff hash、context fingerprint、元のreview結果を表示する。Codexの有無を確認する前に、有効な手動review cacheを確認する。
 
 通常reviewerと高リスク時のreviewerは `AGENT_MODELS.md` で設定可能にする。全commitをレビュー対象とする。初期値では、変更300行以上または10ファイル以上、高リスクパス、SESSION_BRIEF対象外、test/spec変更、モジュール横断、通常reviewerの判断不能をエスカレーション条件とする。変更量だけによる強制blockは行わない。閾値はプロジェクトごとに変更可能にする。
 
@@ -841,6 +845,8 @@ bash .agentskills/setup/setup-hooks.sh --force
 
 setup scriptは、自身の配置場所からkit rootとGitルートからの相対パスを求める。既存のHusky、Lefthook、独自hookを自動編集または自動統合しない。Git Hookの導入判断、通常実行と `--force` の違い、既存hookからgateを手動で呼び出す方法を `common/README.md` に記載する。
 
+setup scriptはGit、`jq`、およびSHA-256を計算できる`sha256sum`、`shasum`、`openssl`のいずれかを事前確認する。Codex CLIがない場合はsetup自体をblockせず、手動reviewまたは明示的skipが必要になることを警告する。Bash 3.2を最低互換範囲とし、`mapfile`、Bash 4専用の小文字変換、GNU `timeout`への必須依存を避ける。論理kit pathを`agentskills.kitPath`へ保存し、fallback commandは固定パスではなくこの値から生成する。
+
 ## 9. モデル切り替え方針
 
 具体的なモデル名は設計書や共通ルールへ固定しない。モデル構成は時期、製品、利用可能な契約によって変化するため、役割だけを共通定義し、プロジェクトごとに任意設定できるようにする。
@@ -908,6 +914,8 @@ common/
     check-large-files.sh
     check-diff-basic.sh
     check-llm-review.sh
+  lib/
+    review-common.sh
   reviewers/
     review-staged-diff.sh
     record-manual-review.sh
@@ -918,6 +926,8 @@ common/
     pre-push
   setup/
     setup-hooks.sh
+  tests/
+    run-tests.sh
 ```
 
 以下は v0.1 では任意または将来対応とする。

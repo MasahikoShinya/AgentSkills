@@ -8,7 +8,10 @@ echo "[AgentSkills][HOOK][START] pre-push"
 echo "Remote: $remote_name"
 echo "URL: $remote_url"
 
-mapfile -t protected < <(git config --local --get-all agentskills.protectedPushBranch || true)
+protected=()
+while IFS= read -r branch; do
+  [[ -n "$branch" ]] && protected+=("$branch")
+done < <(git config --local --get-all agentskills.protectedPushBranch || true)
 if ((${#protected[@]} == 0)); then
   protected=(main master)
   source_label="default"

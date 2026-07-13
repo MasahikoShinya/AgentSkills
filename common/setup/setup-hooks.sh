@@ -17,6 +17,8 @@ fi
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 SCRIPT_DIR_PHYSICAL="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 KIT_ROOT_PHYSICAL="$(cd "$SCRIPT_DIR_PHYSICAL/.." && pwd -P)"
+# shellcheck source=../lib/review-common.sh
+source "$KIT_ROOT_PHYSICAL/lib/review-common.sh"
 
 case "${BASH_SOURCE[0]}" in
   *"/.agentskills/setup/setup-hooks.sh"|.agentskills/setup/setup-hooks.sh)
@@ -36,6 +38,29 @@ echo "[AgentSkills][SETUP][START] Git hooks"
 echo "Repository: $REPO_ROOT"
 echo "Kit root: $KIT_ROOT_PHYSICAL"
 echo "Requested core.hooksPath: $hooks_path"
+echo "Bash version: $BASH_VERSION"
+
+missing=0
+for command in git jq; do
+  if ! command -v "$command" >/dev/null 2>&1; then
+    echo "[AgentSkills][SETUP][BLOCKER] Required command not found: $command" >&2
+    missing=1
+  fi
+done
+if ! agentskills_require_hash_command; then
+  echo "[AgentSkills][SETUP][BLOCKER] sha256sum, shasum, or openssl is required" >&2
+  missing=1
+fi
+if ((missing == 1)); then
+  echo "No Git configuration was changed." >&2
+  exit 1
+fi
+if command -v codex >/dev/null 2>&1; then
+  echo "Codex reviewer: available"
+else
+  echo "[AgentSkills][SETUP][WARNING] Codex reviewer is unavailable"
+  echo "Manual review attestation or the explicit one-time skip will be required."
+fi
 
 current="$(git config --local --get core.hooksPath || true)"
 echo "Current core.hooksPath: ${current:-<unset>}"
@@ -63,13 +88,20 @@ chmod +x "$KIT_ROOT_PHYSICAL"/hooks/*
 chmod +x "$KIT_ROOT_PHYSICAL"/gates/*.sh
 chmod +x "$KIT_ROOT_PHYSICAL"/reviewers/*.sh
 chmod +x "$KIT_ROOT_PHYSICAL"/setup/*.sh
+chmod +x "$KIT_ROOT_PHYSICAL"/lib/*.sh
+chmod +x "$KIT_ROOT_PHYSICAL"/tests/*.sh
 
 git config --local core.hooksPath "$hooks_path"
+git config --local agentskills.kitPath "${hooks_path%/hooks}"
 
 echo "[AgentSkills][SETUP][PASS] Git hooks installed"
 echo "core.hooksPath=$(git config --local --get core.hooksPath)"
+echo "agentskills.kitPath=$(git config --local --get agentskills.kitPath)"
 echo "Protected push branches:"
-mapfile -t protected < <(git config --local --get-all agentskills.protectedPushBranch || true)
+protected=()
+while IFS= read -r branch; do
+  [[ -n "$branch" ]] && protected+=("$branch")
+done < <(git config --local --get-all agentskills.protectedPushBranch || true)
 if ((${#protected[@]} == 0)); then
   echo "  main (default)"
   echo "  master (default)"

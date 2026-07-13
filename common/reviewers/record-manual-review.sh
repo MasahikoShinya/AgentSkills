@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+KIT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# shellcheck source=../lib/review-common.sh
+source "$KIT_ROOT/lib/review-common.sh"
+
 runtime=""
 status=""
 while (($# > 0)); do
@@ -25,10 +30,13 @@ if [[ -z "$runtime" || "$status" != "OK" ]]; then
   echo "Usage: $0 --runtime <name> --status OK" >&2
   exit 2
 fi
+if ! command -v jq >/dev/null 2>&1 || ! agentskills_require_hash_command; then
+  echo "[AgentSkills][MANUAL-REVIEW][FAIL] jq and a SHA-256 command are required" >&2
+  exit 3
+fi
 
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
-
 if [[ ! -f SESSION_BRIEF.md ]]; then
   echo "[AgentSkills][MANUAL-REVIEW][BLOCKER] SESSION_BRIEF.md not found" >&2
   exit 2
@@ -38,9 +46,17 @@ if git diff --cached --quiet --exit-code; then
   exit 2
 fi
 
-diff_hash="$(git diff --cached --binary --no-ext-diff | sha256sum | awk '{print $1}')"
-cache_dir="$(git rev-parse --git-path agentskills/reviews)"
-cache_file="$cache_dir/$diff_hash.json"
+line_limit="$(git config --local --get agentskills.reviewEscalateLines || true)"
+file_limit="$(git config --local --get agentskills.reviewEscalateFiles || true)"
+line_limit="${line_limit:-300}"
+file_limit="${file_limit:-10}"
+agentskills_collect_staged_risk "$line_limit" "$file_limit"
+escalated="$AGENTSKILLS_REVIEW_ESCALATE"
+diff_hash="$(agentskills_hash_staged_diff)"
+context_fingerprint="$(agentskills_context_fingerprint "$repo_root" "$KIT_ROOT" "$escalated" "$line_limit" "$file_limit")"
+cache_dir="$(git rev-parse --git-path agentskills/reviews)/$context_fingerprint"
+runtime_name="$(agentskills_safe_cache_component "$runtime")"
+cache_file="$cache_dir/manual-$runtime_name.json"
 mkdir -p "$cache_dir"
 
 jq -n \
@@ -57,4 +73,5 @@ jq -n \
 echo "[AgentSkills][MANUAL-REVIEW][PASS] staged-diff"
 echo "Runtime: $runtime"
 echo "Diff hash: $diff_hash"
+echo "Context fingerprint: $context_fingerprint"
 echo "Recorded: $cache_file"
