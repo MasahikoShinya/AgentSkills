@@ -21,7 +21,16 @@ view_args=(pr view)
 [[ -n "$pr_ref" ]] && view_args+=("$pr_ref")
 view_args+=(--json number,url,title,state,isDraft,baseRefName,headRefName,mergeable,mergeStateStatus,reviewDecision)
 
-metadata="$(gh "${view_args[@]}")"
+set +e
+metadata="$(gh "${view_args[@]}" 2>&1)"
+metadata_rc=$?
+set -e
+if ((metadata_rc != 0)); then
+  echo "[AgentSkills][PR-REVIEW][BLOCKER] PR metadata unavailable" >&2
+  echo "Reason: $metadata" >&2
+  echo "Resolution: Authenticate gh with 'gh auth login', verify repository access, and confirm the PR number or URL." >&2
+  exit 2
+fi
 number="$(jq -r '.number' <<<"$metadata")"
 url="$(jq -r '.url' <<<"$metadata")"
 
@@ -51,6 +60,16 @@ fi
 printf '%s\n' "$checks"
 
 echo "Changed files:"
-gh pr diff "$number" --name-only
+set +e
+changed_files="$(gh pr diff "$number" --name-only 2>&1)"
+changed_files_rc=$?
+set -e
+if ((changed_files_rc != 0)); then
+  echo "[AgentSkills][PR-REVIEW][BLOCKER] PR diff unavailable" >&2
+  echo "Reason: $changed_files" >&2
+  echo "Resolution: Verify gh authentication, repository access, and PR availability before retrying." >&2
+  exit 2
+fi
+printf '%s\n' "$changed_files"
 echo "Review diff with: gh pr diff $number"
 echo "[AgentSkills][PR-REVIEW][PASS] inspection"

@@ -93,6 +93,10 @@ make_fake_gh() {
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ "$1" == "pr" && "$2" == "view" ]]; then
+  if [[ "${FAKE_GH_VIEW_FAIL:-0}" == "1" ]]; then
+    echo "authentication required" >&2
+    exit 1
+  fi
   printf '%s\n' '{"number":42,"url":"https://github.com/example/repo/pull/42","title":"Test PR","state":"OPEN","isDraft":false,"baseRefName":"main","headRefName":"feature/test","mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","reviewDecision":""}'
 elif [[ "$1" == "pr" && "$2" == "checks" ]]; then
   if [[ "${FAKE_GH_NO_CHECKS:-0}" == "1" ]]; then
@@ -101,6 +105,10 @@ elif [[ "$1" == "pr" && "$2" == "checks" ]]; then
   fi
   printf '%s\n' 'unit-tests\tpass\t2m'
 elif [[ "$1" == "pr" && "$2" == "diff" && "$4" == "--name-only" ]]; then
+  if [[ "${FAKE_GH_DIFF_FAIL:-0}" == "1" ]]; then
+    echo "PR diff is unavailable" >&2
+    exit 1
+  fi
   printf '%s\n' 'src/example.ts'
 else
   echo "Unexpected gh arguments: $*" >&2
@@ -318,6 +326,21 @@ test_pull_request_inspection() {
   set -e
   [[ "$rc" == "0" ]] && pass "PR inspection permits absent checks" || fail "PR inspection permits absent checks"
   assert_contains "$output" "[AgentSkills][PR-REVIEW][SKIP] checks" "absent checks are skipped rather than warned"
+
+  set +e
+  output="$(cd "$repo" && PATH="$repo/fake-bin:/usr/bin:/bin" FAKE_GH_VIEW_FAIL=1 common/reviewers/inspect-pull-request.sh 42 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "2" ]] && pass "PR metadata failure blocks inspection" || fail "PR metadata failure blocks inspection"
+  assert_contains "$output" "[AgentSkills][PR-REVIEW][BLOCKER] PR metadata unavailable" "metadata failure is visible"
+  assert_contains "$output" "gh auth login" "metadata failure provides authentication resolution"
+
+  set +e
+  output="$(cd "$repo" && PATH="$repo/fake-bin:/usr/bin:/bin" FAKE_GH_DIFF_FAIL=1 common/reviewers/inspect-pull-request.sh 42 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "2" ]] && pass "PR diff failure blocks inspection" || fail "PR diff failure blocks inspection"
+  assert_contains "$output" "[AgentSkills][PR-REVIEW][BLOCKER] PR diff unavailable" "diff failure is visible"
 }
 
 test_pre_push_policy() {
