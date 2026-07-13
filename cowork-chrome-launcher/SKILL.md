@@ -121,11 +121,11 @@ mcp__Claude_in_Chrome__tabs_context_mcp(createIfEmpty=true) を呼ぶ
 > ターミナル（Spotlight で「ターミナル」検索）を開いて以下を貼り付け→Enter：
 >
 > ```
-> ~/Git/ClaudeSkills/cowork-chrome-launcher/scripts/open-cowork-chrome.command
+> ~/Git/AgentSkills/cowork-chrome-launcher/scripts/open-cowork-chrome.command
 > ```
 >
 > **方法3: Finder からダブルクリック**
-> Finder で `~/Git/ClaudeSkills/cowork-chrome-launcher/scripts/` に移動し、`open-cowork-chrome.command` をダブルクリック。
+> Finder で `~/Git/AgentSkills/cowork-chrome-launcher/scripts/` に移動し、`open-cowork-chrome.command` をダブルクリック。
 >
 > 初回は macOS Gatekeeper の警告が出ることがあります。「システム設定 → プライバシーとセキュリティ」で下の方の「このまま開く」をクリックして許可してください。
 >
@@ -139,12 +139,12 @@ mcp__Claude_in_Chrome__tabs_context_mcp(createIfEmpty=true) を呼ぶ
 > 登録してあればログイン直後に自動起動しているはず。タスクバーで Chrome を確認してください。
 >
 > **方法2: ダブルクリック起動**
-> Explorer で `%USERPROFILE%\Git\ClaudeSkills\cowork-chrome-launcher\scripts\` に移動し、`open-cowork-chrome.bat` をダブルクリック。
+> Explorer で `%USERPROFILE%\Git\AgentSkills\cowork-chrome-launcher\scripts\` に移動し、`open-cowork-chrome.bat` をダブルクリック。
 >
 > **方法3: PowerShell から実行**
 >
 > ```
-> & "$env:USERPROFILE\Git\ClaudeSkills\cowork-chrome-launcher\scripts\open-cowork-chrome.bat"
+> & "$env:USERPROFILE\Git\AgentSkills\cowork-chrome-launcher\scripts\open-cowork-chrome.bat"
 > ```
 >
 > 初回は Windows SmartScreen の警告が出ることがあります。「詳細情報」→「実行」で進めてください。

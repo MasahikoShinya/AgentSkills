@@ -392,7 +392,7 @@ test.describe(SCENARIO, () => {
 
 ### スクリプトの配置
 
-AgentSkillsリポジトリの `test-orchestrator/generate-player.ts` が互換配置の正規実装。
+AgentSkillsリポジトリの `claude/skills/test-orchestrator/generate-player.ts` が正規の実装。
 `~/.claude/skills/test-orchestrator/generate-player.ts` から **毎回上書きコピー** してテスト実行ディレクトリに配置する（古いコピーが残っていても必ず最新版を反映させるため）。
 
 **推奨**: 後述の `run-visual-verify.sh` ラッパーを使えば、Playwright 実行から player.html 生成まで一発で揃う。
