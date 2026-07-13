@@ -73,6 +73,17 @@ EOF
   chmod +x "$repo/fake-bin/codex"
 }
 
+make_stubborn_codex() {
+  local repo="$1"
+  mkdir -p "$repo/fake-bin"
+  cat >"$repo/fake-bin/codex" <<'EOF'
+#!/usr/bin/env bash
+trap '' TERM
+while :; do :; done
+EOF
+  chmod +x "$repo/fake-bin/codex"
+}
+
 run_reviewer_with_result() {
   local repo="$1"
   local result="$2"
@@ -177,7 +188,8 @@ test_mechanical_gates() {
   assert_contains "$output" "BLOCKER" "sensitive-file blocker is visible"
 
   git -C "$repo" reset -q --hard HEAD
-  truncate -s 5242881 "$repo/large.bin"
+  dd if=/dev/zero of="$repo/large.bin" bs=1048576 count=5 2>/dev/null
+  printf x >>"$repo/large.bin"
   git -C "$repo" add large.bin
   set +e
   output="$(cd "$repo" && common/gates/check-large-files.sh 2>&1)"
@@ -194,6 +206,34 @@ test_mechanical_gates() {
   set -e
   [[ "$rc" != "0" ]] && pass "whitespace error is blocked by pre-commit gate" || fail "whitespace error is blocked by pre-commit gate"
   assert_contains "$output" "[AgentSkills][CHECK][START] whitespace" "pre-commit check name is visible"
+}
+
+test_reviewer_timeout() {
+  local repo output rc start end
+  repo="$(new_repo)"
+  printf 'change\n' >>"$repo/app.txt"
+  git -C "$repo" add app.txt
+  git -C "$repo" config agentskills.reviewTimeoutSeconds 1
+  git -C "$repo" config agentskills.reviewTimeoutKillGraceSeconds 1
+  make_stubborn_codex "$repo"
+
+  start="$(date +%s)"
+  set +e
+  output="$(cd "$repo" && PATH="$repo/fake-bin:$ORIGINAL_PATH" common/reviewers/review-staged-diff.sh 2>&1)"
+  rc=$?
+  set -e
+  end="$(date +%s)"
+  [[ "$rc" == "3" ]] && pass "TERM-resistant reviewer is forcibly stopped" || fail "TERM-resistant reviewer is forcibly stopped"
+  assert_contains "$output" "exceeded 1 seconds" "timeout reason is visible"
+  (((end - start) < 8)) && pass "timeout returns within bounded time" || fail "timeout returns within bounded time"
+
+  git -C "$repo" config agentskills.reviewTimeoutSeconds invalid
+  set +e
+  output="$(cd "$repo" && PATH="$repo/fake-bin:$ORIGINAL_PATH" common/reviewers/review-staged-diff.sh 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "3" ]] && pass "invalid timeout configuration is rejected" || fail "invalid timeout configuration is rejected"
+  assert_contains "$output" "must be a positive integer" "invalid timeout explains required format"
 }
 
 test_pre_push_policy() {
@@ -238,6 +278,7 @@ test_manual_cache_and_invalidation
 test_staged_path_parsing
 test_fallback_path
 test_mechanical_gates
+test_reviewer_timeout
 test_pre_push_policy
 test_setup_conflict_and_force
 

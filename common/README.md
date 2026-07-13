@@ -154,6 +154,13 @@ git config --local agentskills.reviewEscalateLines 300
 git config --local agentskills.reviewEscalateFiles 10
 ```
 
+Codex reviewのtimeoutは既定180秒です。timeout後は`SIGTERM`を送り、既定5秒の猶予後も終了しない場合は`SIGKILL`で停止します。値は正の整数で設定します。
+
+```bash
+git config --local agentskills.reviewTimeoutSeconds 180
+git config --local agentskills.reviewTimeoutKillGraceSeconds 5
+```
+
 ## Git Hookのセットアップ
 
 配置だけではHookは有効になりません。利用者またはエージェントが明示的に実行します。

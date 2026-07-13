@@ -61,9 +61,10 @@ result_is_valid() {
 
 run_with_timeout() {
   local seconds="$1"
-  local prompt_file="$2"
-  local log_file="$3"
-  shift 3
+  local kill_grace_seconds="$2"
+  local prompt_file="$3"
+  local log_file="$4"
+  shift 4
   local command_pid watchdog_pid rc timed_out
   local marker
   marker="$(mktemp)"
@@ -76,6 +77,10 @@ run_with_timeout() {
     if kill -0 "$command_pid" 2>/dev/null; then
       : >"$marker"
       kill -TERM "$command_pid" 2>/dev/null || true
+      sleep "$kill_grace_seconds"
+      if kill -0 "$command_pid" 2>/dev/null; then
+        kill -KILL "$command_pid" 2>/dev/null || true
+      fi
     fi
   ) &
   watchdog_pid=$!
@@ -192,8 +197,21 @@ fi
 codex_args+=(-)
 review_timeout="$(git config --local --get agentskills.reviewTimeoutSeconds || true)"
 review_timeout="${review_timeout:-180}"
+review_kill_grace="$(git config --local --get agentskills.reviewTimeoutKillGraceSeconds || true)"
+review_kill_grace="${review_kill_grace:-5}"
 
-if ! run_with_timeout "$review_timeout" "$prompt_tmp" "$log_tmp" codex "${codex_args[@]}"; then
+if [[ ! "$review_timeout" =~ ^[1-9][0-9]*$ ]]; then
+  echo "[AgentSkills][LLM-REVIEW][FAIL] Invalid timeout configuration" >&2
+  echo "Reason: agentskills.reviewTimeoutSeconds must be a positive integer." >&2
+  exit 3
+fi
+if [[ ! "$review_kill_grace" =~ ^[1-9][0-9]*$ ]]; then
+  echo "[AgentSkills][LLM-REVIEW][FAIL] Invalid timeout configuration" >&2
+  echo "Reason: agentskills.reviewTimeoutKillGraceSeconds must be a positive integer." >&2
+  exit 3
+fi
+
+if ! run_with_timeout "$review_timeout" "$review_kill_grace" "$prompt_tmp" "$log_tmp" codex "${codex_args[@]}"; then
   echo "[AgentSkills][LLM-REVIEW][FAIL] Codex reviewer unavailable" >&2
   if [[ "${AGENTSKILLS_COMMAND_TIMED_OUT:-0}" == "1" ]]; then
     echo "Reason: codex exec exceeded ${review_timeout} seconds." >&2
