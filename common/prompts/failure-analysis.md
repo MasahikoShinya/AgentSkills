@@ -1,6 +1,11 @@
 # Failure Analysis
 
-[AgentSkills][PROMPT][START] @failure-analysis
+After reading this file, report:
+
+```text
+[AgentSkills][PROMPT][START] #$failure-analysis
+Source: .agentskills/prompts/failure-analysis.md
+```
 
 Use after a gate, test, review, hook, or reviewer failure. Analyze before making another change.
 
@@ -16,4 +21,4 @@ Report:
 6. Verification after correction.
 7. Whether user permission is required before proceeding.
 
-[AgentSkills][PROMPT][END] @failure-analysis
+After the analysis, report `PROMPT END` with `Execution: completed` and the most likely cause. If the failure evidence is unavailable, report `PROMPT BLOCKER` with the missing command output instead of `PROMPT END`.

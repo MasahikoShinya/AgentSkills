@@ -68,7 +68,7 @@ case "$rc" in
     echo "[AgentSkills][CHECK][FAIL] llm-review" >&2
     echo "" >&2
     echo "Option 1 - Review manually in Claude Code:" >&2
-    echo "  @subagent-review SESSION_BRIEF.md and git diff --cached; do not modify code." >&2
+    echo "  #$subagent-review SESSION_BRIEF.md と git diff --cached を根拠にレビューし、コードは変更しない。" >&2
     printf '  bash %q/reviewers/record-manual-review.sh --runtime claude --status OK\n' "$configured_kit_path" >&2
     echo "  git commit" >&2
     echo "" >&2

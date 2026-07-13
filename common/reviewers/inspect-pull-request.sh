@@ -8,7 +8,7 @@ fi
 
 if ! command -v gh >/dev/null 2>&1; then
   echo "[AgentSkills][PR-REVIEW][FAIL] GitHub CLI not found" >&2
-  echo "Reason: @pr-review requires authenticated gh access to inspect PR metadata and diff." >&2
+  echo "Reason: #$pr-reviewには、PR metadata と diff を確認する認証済みの gh が必要です。" >&2
   exit 3
 fi
 if ! command -v jq >/dev/null 2>&1; then

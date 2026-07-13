@@ -8,10 +8,14 @@ Merge it into the project-root `AGENTS.md`; do not replace project-specific rule
 When a workflow component is actually used, report it with this format:
 
 ```text
-[AgentSkills][COMPONENT][START|PASS|WARNING|BLOCKER|FAIL|SKIP] name
+[AgentSkills][COMPONENT][START|END|PASS|WARNING|BLOCKER|FAIL|SKIP] name
 ```
 
 Never claim that a rule, prompt, skill, brief, reviewer, or script was used unless it was actually read or executed.
+
+For every prompt-backed pseudo-command, emit `PROMPT START` and its source path only after reading the prompt. Emit `PROMPT END` only after completing the requested prompt procedure, with its outcome or next action. If the procedure cannot be completed, emit `PROMPT BLOCKER` or `PROMPT SKIP` with the reason instead. `PROMPT END` proves only that the agent completed the prompt procedure; review, gate, and test outcomes must be reported by their own component status. For a pseudo-command that dispatches directly to a shell script, use that script's `START` and final status as its execution evidence.
+
+For a commit gate or hook, commit only after its final status is `PASS`. `BLOCKER` and `FAIL` stop that commit attempt. A `WARNING` alone does not determine commit eligibility; inspect the final `GATE` or `HOOK` status.
 
 ## Work Mode Selector
 
@@ -77,7 +81,7 @@ Return `OK`, `WARNING`, or `BLOCKER` with concrete evidence. `OK` may proceed. `
 
 An independent reviewer must not assume the parent conversation, implementation intent, reasoning, or prior attempts. It may use only `AGENTS.md`, `SESSION_BRIEF.md`, Git status and diffs, and necessary current file contents. It must not modify code, staging, tests, or the brief.
 
-For a pull request review, use `@pr-review [PR-number-or-URL]`. Read the matching pull-request prompt, inspect PR metadata, checks, and the base/head diff through `gh`, then return `OK`, `WARNING`, or `BLOCKER`. Do not merge, push, comment on, or edit a PR unless the user separately requests that operation.
+For a pull request review, use `#$pr-review [PR-number-or-URL]`. Read the matching pull-request prompt, inspect PR metadata, checks, and the base/head diff through `gh`, then return `OK`, `WARNING`, or `BLOCKER`. Do not merge, push, comment on, or edit a PR unless the user separately requests that operation.
 
 On test, review, gate, or hook failure, do not make consecutive fixes. Read `.agentskills/prompts/failure-analysis.md`, analyze the cause without code changes, and obtain user permission before applying the next fix.
 
@@ -85,9 +89,10 @@ On test, review, gate, or hook failure, do not make consecutive fixes. Read `.ag
 
 | Command | Required input |
 |---|---|
-| `@converge-bugfix` | `.agentskills/prompts/converge-bugfix.md` |
-| `@diff-review` | `.agentskills/prompts/diff-review.md` |
-| `@subagent-review` | `.agentskills/prompts/subagent-review.md` |
-| `@pr-review [PR-number-or-URL]` | `.agentskills/prompts/pr-review.md` |
-| `@failure-analysis` | `.agentskills/prompts/failure-analysis.md` |
-| `@gate` | `.agentskills/gates/pre-commit-gate.sh` |
+| `#$converge-bugfix` | `.agentskills/prompts/converge-bugfix.md` |
+| `#$diff-review` | `.agentskills/prompts/diff-review.md` |
+| `#$subagent-review` | `.agentskills/prompts/subagent-review.md` |
+| `#$pr-review [PR-number-or-URL]` | `.agentskills/prompts/pr-review.md` |
+| `#$failure-analysis` | `.agentskills/prompts/failure-analysis.md` |
+| `#$gate` | `.agentskills/gates/pre-commit-gate.sh` |
+| `#$help` | `.agentskills/prompts/workflow-help.md` |

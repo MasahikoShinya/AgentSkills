@@ -53,6 +53,16 @@ EOF
   printf '%s\n' "$repo"
 }
 
+new_target_repo() {
+  local repo
+  repo="$(mktemp -d "$TEST_ROOT/target.XXXXXX")"
+  git -C "$repo" init -q
+  git -C "$repo" config user.email test@example.com
+  git -C "$repo" config user.name AgentSkillsTest
+  printf '# Project Rules\n' >"$repo/AGENTS.md"
+  printf '%s\n' "$repo"
+}
+
 make_fake_codex() {
   local repo="$1"
   mkdir -p "$repo/fake-bin"
@@ -378,6 +388,37 @@ test_setup_conflict_and_force() {
   [[ "$(git -C "$repo" config agentskills.kitPath)" == "common" ]] && pass "setup records logical kit path" || fail "setup records logical kit path"
 }
 
+test_deploy() {
+  local repo conflict_repo output rc
+  repo="$(new_target_repo)"
+  output="$(bash "$SOURCE_COMMON/setup/deploy.sh" --claude --models "$repo" 2>&1)"
+  [[ -L "$repo/.agentskills" ]] && pass "deploy creates kit symlink" || fail "deploy creates kit symlink"
+  [[ "$(cd "$repo/.agentskills" && pwd -P)" == "$SOURCE_COMMON" ]] && pass "deploy symlink targets source kit" || fail "deploy symlink targets source kit"
+  assert_contains "$(cat "$repo/AGENTS.md")" "AgentSkills Common Rules" "deploy adds AGENTS loader"
+  assert_contains "$(cat "$repo/CLAUDE.md")" "AgentSkills Claude Rules" "deploy adds CLAUDE loader"
+  [[ -f "$repo/SESSION_BRIEF.md" ]] && pass "deploy creates session brief" || fail "deploy creates session brief"
+  [[ -f "$repo/AGENT_MODELS.md" ]] && pass "deploy creates model template on request" || fail "deploy creates model template on request"
+  assert_contains "$output" "[AgentSkills][DEPLOY][PASS] workflow-kit" "deploy reports completion"
+
+  output="$(bash "$SOURCE_COMMON/setup/deploy.sh" --claude --models "$repo" 2>&1)"
+  assert_contains "$output" "loader already present" "deploy is idempotent for managed loaders"
+  assert_contains "$output" ".agentskills already links to this kit" "deploy is idempotent for kit link"
+
+  conflict_repo="$(new_target_repo)"
+  mkdir "$conflict_repo/.agentskills"
+  set +e
+  output="$(bash "$SOURCE_COMMON/setup/deploy.sh" "$conflict_repo" 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "1" ]] && pass "deploy preserves an existing kit directory" || fail "deploy preserves an existing kit directory"
+  assert_contains "$output" "Existing .agentskills was not changed" "deploy conflict explains preservation"
+  if grep -Fq "AgentSkills Common Rules" "$conflict_repo/AGENTS.md"; then
+    fail "deploy conflict does not edit AGENTS.md"
+  else
+    pass "deploy conflict does not edit AGENTS.md"
+  fi
+}
+
 printf 'TAP version 13\n'
 test_status_consistency
 test_evidence_required
@@ -390,6 +431,7 @@ test_successful_reviewer_cleans_watchdog
 test_pull_request_inspection
 test_pre_push_policy
 test_setup_conflict_and_force
+test_deploy
 
 if ((FAIL_COUNT > 0)); then
   printf '# %d test assertions failed\n' "$FAIL_COUNT" >&2
