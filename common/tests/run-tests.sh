@@ -86,6 +86,30 @@ EOF
   chmod +x "$repo/fake-bin/sleep"
 }
 
+make_fake_gh() {
+  local repo="$1"
+  mkdir -p "$repo/fake-bin"
+  cat >"$repo/fake-bin/gh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "$1" == "pr" && "$2" == "view" ]]; then
+  printf '%s\n' '{"number":42,"url":"https://github.com/example/repo/pull/42","title":"Test PR","state":"OPEN","isDraft":false,"baseRefName":"main","headRefName":"feature/test","mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","reviewDecision":""}'
+elif [[ "$1" == "pr" && "$2" == "checks" ]]; then
+  if [[ "${FAKE_GH_NO_CHECKS:-0}" == "1" ]]; then
+    echo "no checks reported on the 'feature/test' branch" >&2
+    exit 1
+  fi
+  printf '%s\n' 'unit-tests\tpass\t2m'
+elif [[ "$1" == "pr" && "$2" == "diff" && "$4" == "--name-only" ]]; then
+  printf '%s\n' 'src/example.ts'
+else
+  echo "Unexpected gh arguments: $*" >&2
+  exit 2
+fi
+EOF
+  chmod +x "$repo/fake-bin/gh"
+}
+
 make_stubborn_codex() {
   local repo="$1"
   mkdir -p "$repo/fake-bin"
@@ -274,6 +298,28 @@ test_successful_reviewer_cleans_watchdog() {
   fi
 }
 
+test_pull_request_inspection() {
+  local repo output rc
+  repo="$(new_repo)"
+  make_fake_gh "$repo"
+  set +e
+  output="$(cd "$repo" && PATH="$repo/fake-bin:/usr/bin:/bin" common/reviewers/inspect-pull-request.sh 42 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "0" ]] && pass "pull-request inspection succeeds" || fail "pull-request inspection succeeds"
+  assert_contains "$output" "[AgentSkills][PR-REVIEW][START] #42" "PR number is displayed"
+  assert_contains "$output" "unit-tests" "PR checks are displayed"
+  assert_contains "$output" "src/example.ts" "PR changed files are displayed"
+  assert_contains "$output" "Review diff with: gh pr diff 42" "PR diff command is displayed"
+
+  set +e
+  output="$(cd "$repo" && PATH="$repo/fake-bin:/usr/bin:/bin" FAKE_GH_NO_CHECKS=1 common/reviewers/inspect-pull-request.sh 42 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "0" ]] && pass "PR inspection permits absent checks" || fail "PR inspection permits absent checks"
+  assert_contains "$output" "[AgentSkills][PR-REVIEW][SKIP] checks" "absent checks are skipped rather than warned"
+}
+
 test_pre_push_policy() {
   local repo output rc zero
   repo="$(new_repo)"
@@ -318,6 +364,7 @@ test_fallback_path
 test_mechanical_gates
 test_reviewer_timeout
 test_successful_reviewer_cleans_watchdog
+test_pull_request_inspection
 test_pre_push_policy
 test_setup_conflict_and_force
 

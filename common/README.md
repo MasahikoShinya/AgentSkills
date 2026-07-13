@@ -9,7 +9,7 @@ Skillの自動発動には依存しません。共通基盤はMarkdown、shell s
 | Trigger | 起動する処理 |
 |---|---|
 | 自動駆動 | `AGENTS.md`／`CLAUDE.md`、Mode Selector、SESSION_BRIEF、標準収束フロー |
-| ユーザー指示 | `@converge-bugfix`、`@diff-review`、`@subagent-review`、`@failure-analysis`、`@gate` |
+| ユーザー指示 | `@converge-bugfix`、`@diff-review`、`@subagent-review`、`@pr-review`、`@failure-analysis`、`@gate` |
 | ローカルGit Hook | pre-commitの機械gateとCodex review、pre-pushの保護ブランチ検査 |
 | GitHubイベント | 将来対応。v0.1では実装しない |
 
@@ -74,11 +74,24 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 @converge-bugfix
 @diff-review
 @subagent-review
+@pr-review 123
 @failure-analysis
 @gate
 ```
 
 擬似コマンドはslash commandや実行ファイルではありません。自動ロードされた`AGENTS.md`が対応する`prompts/*.md`またはgateへ配送します。
+
+### Pull Request Review
+
+`@pr-review`はGitHub Pull Requestを読み取り専用でレビューします。PR番号またはURLを渡します。引数を省略した場合は、現在ブランチに対応するPRを確認します。
+
+```text
+@pr-review 123
+@pr-review https://github.com/owner/repository/pull/123
+@pr-review
+```
+
+この手順は`gh pr view`、`gh pr checks`、`gh pr diff`を根拠に、base/head、checks、mergeability、差分のfindingsを`OK / WARNING / BLOCKER`で報告します。`gh`と`jq`が必要です。レビュー中にPRのmerge、push、comment、editは行いません。mergeは別途、ユーザーが明示的に指示した場合だけ実行します。
 
 ## 収束フロー
 
