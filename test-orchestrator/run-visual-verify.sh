@@ -50,16 +50,35 @@ echo "[run-visual-verify] test-results   : $TEST_RESULTS_DIR"
 #  --output      : 各 test の outputDir を spec dir に向ける (= 動画 + testInfo.outputPath が spec dir に集まる)
 #  PLAYWRIGHT_JSON_OUTPUT_NAME : reporter outputFile を spec dir に向ける (config 側が env 参照する前提)
 #  E2E_VIDEO=on  : テストの test.use({ video }) を録画 ON に切替 (test ファイル側が env 参照する前提)
+set +e
 PLAYWRIGHT_JSON_OUTPUT_NAME="$TEST_RESULTS_DIR/results.json" \
 E2E_VIDEO=on \
     npx playwright test \
         --output "$TEST_RESULTS_DIR" \
         "$@"
+PLAYWRIGHT_RC=$?
+set -e
+
+if ((PLAYWRIGHT_RC != 0)); then
+    echo "[run-visual-verify] Playwright failed (exit=$PLAYWRIGHT_RC); generating the player from available artifacts." >&2
+fi
 
 # generate-player.ts を毎回 canonical から上書きコピーして実行
 SKILL_GENERATOR="$(dirname "$0")/generate-player.ts"
 cp -f "$SKILL_GENERATOR" "$SPEC_DIR_ABS/generate-player.ts"
 
+set +e
 (cd "$SPEC_DIR_ABS" && npx tsx generate-player.ts)
+GENERATOR_RC=$?
+set -e
 
-echo "[run-visual-verify] player.html    : $TEST_RESULTS_DIR/player.html"
+if ((GENERATOR_RC != 0)); then
+    echo "[run-visual-verify] player generation failed (exit=$GENERATOR_RC)." >&2
+    if ((PLAYWRIGHT_RC == 0)); then
+        exit "$GENERATOR_RC"
+    fi
+else
+    echo "[run-visual-verify] player.html    : $TEST_RESULTS_DIR/player.html"
+fi
+
+exit "$PLAYWRIGHT_RC"

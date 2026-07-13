@@ -78,8 +78,10 @@ function lookupMeta(scenarioName: string, results: any): ScenarioMeta {
         for (const att of result.attachments) {
             if (att?.name === 'video' && typeof att?.path === 'string') {
                 // attachment path: .../<test-results>/<videoDirName>/video.webm
-                const m = att.path.match(/\/([^\/]+)\/video\.webm$/);
-                if (m && m[1] === scenarioName) return true;
+                const normalizedPath = att.path.replace(/\\/g, '/');
+                const m = normalizedPath.match(/\/([^/]+)\/video\.webm$/);
+                const attachmentScenario = m?.[1]?.replace(/-chromium$|-firefox$|-webkit$/, '');
+                if (attachmentScenario === scenarioName) return true;
             }
         }
         return false;
@@ -92,10 +94,13 @@ function lookupMeta(scenarioName: string, results: any): ScenarioMeta {
 
         if (Array.isArray(suite.specs)) {
             for (const spec of suite.specs) {
-                const testResult = spec.tests?.[0]?.results?.[0];
-                const matchA = matchesByAttachment(testResult);
+                const allResults = Array.isArray(spec.tests)
+                    ? spec.tests.flatMap((test: any) => Array.isArray(test.results) ? test.results : [])
+                    : [];
+                const attachmentResult = allResults.find(matchesByAttachment);
                 const matchB = typeof spec.title === 'string' && scenarioName.includes(spec.title);
-                if (matchA || matchB) {
+                if (attachmentResult || matchB) {
+                    const testResult = attachmentResult ?? allResults[allResults.length - 1];
                     const specAnnotations: Annotation[] = Array.isArray(spec.annotations) ? spec.annotations : [];
                     const resultAnnotations: Annotation[] = Array.isArray(testResult?.annotations) ? testResult.annotations : [];
                     return {

@@ -90,6 +90,13 @@ Claude Code の Agent tool、Codex CLI の実行環境、Gemini CLI の command 
 
 Claude Code は `~/.claude/skills/` の Skill ディレクトリと `~/.claude/agents/` のサブエージェントを読む。新構成では `claude/skills/` と `claude/agents/` をリンクする。
 
+Claude CodeとCoworkでは読み込み方式が異なる。Claude Codeのsymlinkを作成してもCoworkには反映されず、Coworkへ`.skill`をインストールしてもClaude Codeのsymlinkは更新されない。
+
+| クライアント | 読み込み方式 | 更新方法 |
+|---|---|---|
+| Claude Code | `~/.claude/skills/`と`~/.claude/agents/`。symlink可 | リポジトリを`git pull` |
+| Cowork / Claude Desktop | `.skill`パッケージをアプリへインストール | 再パッケージ、再インストール、アプリ再起動 |
+
 ディレクトリ全体をリンクする例:
 
 ```bash
@@ -113,6 +120,21 @@ ln -s ~/Git/AgentSkills/claude/agents/e2e-runner.md ~/.claude/agents/e2e-runner.
 ln -s ~/Git/AgentSkills/claude/agents/e2e-visual-verify.md ~/.claude/agents/e2e-visual-verify.md
 ln -s ~/Git/AgentSkills/claude/agents/code-reviewer.md ~/.claude/agents/code-reviewer.md
 ln -s ~/Git/AgentSkills/claude/agents/code-critic.md ~/.claude/agents/code-critic.md
+```
+
+Windows PowerShellでは、管理者権限または開発者モードを有効にして個別linkを作成する。
+
+```powershell
+New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.claude\skills"
+New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.claude\agents"
+
+New-Item -ItemType SymbolicLink -Path "$env:USERPROFILE\.claude\skills\test-orchestrator" -Target "$env:USERPROFILE\Git\AgentSkills\claude\skills\test-orchestrator"
+New-Item -ItemType SymbolicLink -Path "$env:USERPROFILE\.claude\skills\code-review" -Target "$env:USERPROFILE\Git\AgentSkills\claude\skills\code-review"
+New-Item -ItemType SymbolicLink -Path "$env:USERPROFILE\.claude\skills\cowork-chrome-launcher" -Target "$env:USERPROFILE\Git\AgentSkills\claude\skills\cowork-chrome-launcher"
+
+Get-ChildItem "$env:USERPROFILE\Git\AgentSkills\claude\agents\*.md" | ForEach-Object {
+    New-Item -ItemType SymbolicLink -Path "$env:USERPROFILE\.claude\agents\$($_.Name)" -Target $_.FullName
+}
 ```
 
 旧 `ClaudeSkills` 配置を使っている既存環境は、そのまま動作する。移行時にリンク先を `ClaudeSkills/<skill>` から `AgentSkills/claude/skills/<skill>` へ切り替える。
@@ -213,7 +235,36 @@ ln -s ~/Git/AgentSkills/codex/skills/code-review ~/.agents/skills/code-review
 
 ## Cowork / Claude Desktop の .skill パッケージ
 
-Cowork は symlink ではなく `.skill` パッケージをインストールする方式。`claude/skills/cowork-chrome-launcher/` の入口は `shared/` を参照するため、単体フォルダだけを `.skill` 化すると共有本文が同梱されない。現時点で Cowork に単体インストールする場合は、互換用のルート直下 `cowork-chrome-launcher/` を使うか、パッケージ手順側で `shared/cowork-chrome-launcher.md` も同梱する。
+Coworkはsymlinkではなく`.skill`パッケージをアプリへインストールする。リポジトリに同梱した`cowork-chrome-launcher.skill`は、単体で動く互換用の`cowork-chrome-launcher/`から生成する。
+
+インストール手順:
+
+1. `cowork-chrome-launcher.skill`をClaude Desktopへドラッグ＆ドロップする
+2. 「スキルを保存」を選ぶ
+3. Claude Desktopを完全終了する。MacはCmd+Q、Windowsはタスクトレイから終了する
+4. Claude Desktopを再起動し、新規Coworkセッションでスキルを確認する
+5. 「Chromeでページを開いて」などの依頼で接続先固定を確認する
+
+リポジトリ更新後はCowork側へ自動反映されない。互換用ディレクトリを再パッケージし、同じ手順で再インストールする。
+
+macOS / Linux / WSL:
+
+```bash
+cd ~/Git/AgentSkills
+rm -f cowork-chrome-launcher.skill
+zip -r cowork-chrome-launcher.skill cowork-chrome-launcher \
+  -x '*.DS_Store' '*/__pycache__/*'
+```
+
+Windows PowerShell:
+
+```powershell
+Set-Location "$env:USERPROFILE\Git\AgentSkills"
+Compress-Archive -Path cowork-chrome-launcher -DestinationPath cowork-chrome-launcher.zip -Force
+Move-Item cowork-chrome-launcher.zip cowork-chrome-launcher.skill -Force
+```
+
+`claude/skills/cowork-chrome-launcher/`の入口は`shared/`を参照するため、そのフォルダだけをパッケージしてはならない。共有本文を同梱する独自パッケージ手順を用意しない限り、互換用ルートディレクトリを正本としてパッケージする。
 
 詳細な Chrome プロファイル作成、拡張インストール、起動スクリプト登録、トラブルシューティングは `claude/skills/cowork-chrome-launcher/references/setup.md` を参照する。
 
