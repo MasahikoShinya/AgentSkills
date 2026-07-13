@@ -227,6 +227,7 @@ test_fallback_path() {
   rc=$?
   set -e
   [[ "$rc" == "1" ]] && pass "missing Codex blocks automatic review" || fail "missing Codex blocks automatic review"
+  assert_contains "$output" '#$subagent-review' "fallback displays the manual review pseudo-command"
   assert_contains "$output" "bash common/reviewers/record-manual-review.sh" "fallback uses configured kit path"
 }
 
@@ -353,6 +354,23 @@ test_pull_request_inspection() {
   assert_contains "$output" "[AgentSkills][PR-REVIEW][BLOCKER] PR diff unavailable" "diff failure is visible"
 }
 
+test_pull_request_inspection_without_gh() {
+  local repo output rc
+  repo="$(new_repo)"
+  set +e
+  output="$(cd "$repo" && PATH="/usr/bin:/bin" common/reviewers/inspect-pull-request.sh 42 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "3" ]] && pass "missing GitHub CLI fails with the documented status" || fail "missing GitHub CLI fails with the documented status"
+  assert_contains "$output" "GitHub CLI not found" "missing GitHub CLI is visible"
+  assert_contains "$output" '#$pr-review' "missing GitHub CLI names the pseudo-command"
+  if [[ "$output" == *"unbound variable"* ]]; then
+    fail "missing GitHub CLI does not expand pseudo-command text as a variable"
+  else
+    pass "missing GitHub CLI does not expand pseudo-command text as a variable"
+  fi
+}
+
 test_pre_push_policy() {
   local repo output rc zero
   repo="$(new_repo)"
@@ -429,6 +447,7 @@ test_mechanical_gates
 test_reviewer_timeout
 test_successful_reviewer_cleans_watchdog
 test_pull_request_inspection
+test_pull_request_inspection_without_gh
 test_pre_push_policy
 test_setup_conflict_and_force
 test_deploy
