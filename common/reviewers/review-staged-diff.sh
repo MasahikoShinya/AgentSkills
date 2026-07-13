@@ -73,11 +73,27 @@ run_with_timeout() {
   "$@" <"$prompt_file" >"$log_file" 2>&1 &
   command_pid=$!
   (
-    sleep "$seconds"
+    timer_pid=""
+    cleanup_timer() {
+      if [[ -n "$timer_pid" ]]; then
+        kill "$timer_pid" 2>/dev/null || true
+        wait "$timer_pid" 2>/dev/null || true
+      fi
+      exit 0
+    }
+    trap cleanup_timer TERM INT HUP
+
+    sleep "$seconds" &
+    timer_pid=$!
+    wait "$timer_pid" || exit 0
+    timer_pid=""
     if kill -0 "$command_pid" 2>/dev/null; then
       : >"$marker"
       kill -TERM "$command_pid" 2>/dev/null || true
-      sleep "$kill_grace_seconds"
+      sleep "$kill_grace_seconds" &
+      timer_pid=$!
+      wait "$timer_pid" || exit 0
+      timer_pid=""
       if kill -0 "$command_pid" 2>/dev/null; then
         kill -KILL "$command_pid" 2>/dev/null || true
       fi

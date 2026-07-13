@@ -68,9 +68,22 @@ while (($# > 0)); do
     shift
   fi
 done
+if [[ -n "${FAKE_CODEX_DELAY_SECONDS:-}" ]]; then
+  /bin/sleep "$FAKE_CODEX_DELAY_SECONDS"
+fi
 printf '%s\n' "$FAKE_CODEX_RESULT" >"$output"
 EOF
   chmod +x "$repo/fake-bin/codex"
+}
+
+make_tracked_sleep() {
+  local repo="$1"
+  cat >"$repo/fake-bin/sleep" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$$" >"$FAKE_SLEEP_PID_FILE"
+exec /bin/sleep "$@"
+EOF
+  chmod +x "$repo/fake-bin/sleep"
 }
 
 make_stubborn_codex() {
@@ -236,6 +249,31 @@ test_reviewer_timeout() {
   assert_contains "$output" "must be a positive integer" "invalid timeout explains required format"
 }
 
+test_successful_reviewer_cleans_watchdog() {
+  local repo result output timer_pid
+  repo="$(new_repo)"
+  printf 'change\n' >>"$repo/app.txt"
+  git -C "$repo" add app.txt
+  git -C "$repo" config agentskills.reviewTimeoutSeconds 30
+  make_fake_codex "$repo"
+  make_tracked_sleep "$repo"
+  result='{"status":"OK","summary":"clean","model":"test","escalate":false,"findings":[]}'
+
+  output="$(cd "$repo" && PATH="$repo/fake-bin:$ORIGINAL_PATH" FAKE_CODEX_RESULT="$result" FAKE_CODEX_DELAY_SECONDS=1 FAKE_SLEEP_PID_FILE="$repo/sleep.pid" common/reviewers/review-staged-diff.sh 2>&1)"
+  assert_contains "$output" "[AgentSkills][LLM-REVIEW][PASS]" "successful reviewer completes"
+  if [[ -f "$repo/sleep.pid" ]]; then
+    timer_pid="$(cat "$repo/sleep.pid")"
+    if kill -0 "$timer_pid" 2>/dev/null; then
+      kill "$timer_pid" 2>/dev/null || true
+      fail "successful reviewer cleans watchdog timer"
+    else
+      pass "successful reviewer cleans watchdog timer"
+    fi
+  else
+    fail "successful reviewer started a watchdog timer"
+  fi
+}
+
 test_pre_push_policy() {
   local repo output rc zero
   repo="$(new_repo)"
@@ -279,6 +317,7 @@ test_staged_path_parsing
 test_fallback_path
 test_mechanical_gates
 test_reviewer_timeout
+test_successful_reviewer_cleans_watchdog
 test_pre_push_policy
 test_setup_conflict_and_force
 
