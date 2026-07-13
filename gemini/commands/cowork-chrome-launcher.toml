@@ -1,0 +1,8 @@
+name = "cowork-chrome-launcher"
+description = "Cowork / Claude Desktop の Chrome 接続先固定フローを参照する。互換ブラウザMCPがない場合は実行不可として案内する。"
+
+prompt = """
+AgentSkills の shared/cowork-chrome-launcher.md を読んでください。
+
+このコマンドは Cowork / Claude Desktop の Claude in Chrome 互換 MCP がある環境向けです。Gemini CLI で該当ツールがない場合は、接続先固定を実行したふりをせず、Cowork / Claude Desktop 側で使う必要があると案内してください。
+"""

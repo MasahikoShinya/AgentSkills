@@ -1,0 +1,8 @@
+name = "code-review"
+description = "shared/code-review.md の観点と出力形式に従ってコードレビューを行う。"
+
+prompt = """
+AgentSkills の shared/code-review.md を読み、対象コードをレビューしてください。
+
+複数レビュアーを利用できない場合は単独レビューとして扱い、Agreed / Single / Disputed を捏造しないでください。指摘はファイル、行番号、根拠、影響、提案を含めてください。
+"""

@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-# ClaudeSkills カスタムスキル/エージェントのデプロイスクリプト
-# このリポジトリ自身のスキルとエージェントを ~/.claude/skills/ と
+# AgentSkills Claude Code 用スキル/エージェントのデプロイスクリプト
+# claude/skills と claude/agents を ~/.claude/skills/ と
 # ~/.claude/agents/ にシンボリックリンクで配置する。
 #
 # 対応OS: WSL2, Linux, macOS
@@ -21,7 +21,7 @@ AGENTS_DIR="${HOME}/.claude/agents"
 SKILLS=(test-orchestrator code-review cowork-chrome-launcher)
 AGENTS=(test-planner unit-runner e2e-runner e2e-visual-verify code-reviewer code-critic)
 
-echo "=== ClaudeSkills デプロイ ==="
+echo "=== AgentSkills Claude デプロイ ==="
 echo "Repo:    ${REPO_ROOT}"
 echo "Skills:  ${SKILLS_DIR}"
 echo "Agents:  ${AGENTS_DIR}"
@@ -67,7 +67,7 @@ echo "--- Skills ---"
 sk_c=0; sk_s=0; sk_u=0; sk_w=0
 for skill in "${SKILLS[@]}"; do
     set +e
-    link_one "${REPO_ROOT}/${skill}" "${SKILLS_DIR}/${skill}" "${skill}"
+    link_one "${REPO_ROOT}/claude/skills/${skill}" "${SKILLS_DIR}/${skill}" "${skill}"
     rc=$?
     set -e
     case $rc in
@@ -84,7 +84,7 @@ echo "--- Sub-Agents ---"
 ag_c=0; ag_s=0; ag_u=0; ag_w=0
 for agent in "${AGENTS[@]}"; do
     set +e
-    link_one "${REPO_ROOT}/agents/${agent}.md" "${AGENTS_DIR}/${agent}.md" "${agent}"
+    link_one "${REPO_ROOT}/claude/agents/${agent}.md" "${AGENTS_DIR}/${agent}.md" "${agent}"
     rc=$?
     set -e
     case $rc in

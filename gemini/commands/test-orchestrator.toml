@@ -1,0 +1,8 @@
+name = "test-orchestrator"
+description = "テスト計画、Unit/E2E、目視確認、結果記録を shared/test-orchestrator.md に従って実行する。"
+
+prompt = """
+AgentSkills の shared/test-orchestrator.md を読み、テスト計画、ユニットテスト、E2E テスト、目視確認、test-results.md への結果記録を行ってください。
+
+Gemini CLI では Claude Code の Agent tool や ~/.claude/agents は前提にしません。利用可能なローカルコマンドとプロジェクト設定を確認し、実行できない検証は未実行として記録してください。
+"""
