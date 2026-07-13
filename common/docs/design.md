@@ -747,6 +747,13 @@ Commit: aborted
 - `BLOCKER`: 内容を表示してcommitを停止する
 - Codex未導入、未認証、利用枠切れ、timeout、JSON不正: `FAIL`として理由を表示し、そのcommit試行を停止する
 
+timeout値と強制終了までの猶予値は、正の整数としてローカルGit設定から読み込む。timeout時はreviewerへ`SIGTERM`を送り、猶予時間後も終了していなければ`SIGKILL`で停止する。これにより、応答しないreviewerがpre-commitを無期限に停止させない。
+
+```bash
+git config --local agentskills.reviewTimeoutSeconds 180
+git config --local agentskills.reviewTimeoutKillGraceSeconds 5
+```
+
 Codexを呼び出せない場合、黙ってreviewを省略してはならない。Hookは次の2つの選択肢と実行コマンドを表示する。
 
 1. Claude Codeの現在セッションで `@subagent-review` を手動実行し、`OK` 後に `record-manual-review.sh` で現在のstaged diff hashへreview結果を記録してからcommitを再実行する

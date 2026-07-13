@@ -68,7 +68,31 @@ while (($# > 0)); do
     shift
   fi
 done
+if [[ -n "${FAKE_CODEX_DELAY_SECONDS:-}" ]]; then
+  /bin/sleep "$FAKE_CODEX_DELAY_SECONDS"
+fi
 printf '%s\n' "$FAKE_CODEX_RESULT" >"$output"
+EOF
+  chmod +x "$repo/fake-bin/codex"
+}
+
+make_tracked_sleep() {
+  local repo="$1"
+  cat >"$repo/fake-bin/sleep" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$$" >"$FAKE_SLEEP_PID_FILE"
+exec /bin/sleep "$@"
+EOF
+  chmod +x "$repo/fake-bin/sleep"
+}
+
+make_stubborn_codex() {
+  local repo="$1"
+  mkdir -p "$repo/fake-bin"
+  cat >"$repo/fake-bin/codex" <<'EOF'
+#!/usr/bin/env bash
+trap '' TERM
+while :; do :; done
 EOF
   chmod +x "$repo/fake-bin/codex"
 }
@@ -177,7 +201,8 @@ test_mechanical_gates() {
   assert_contains "$output" "BLOCKER" "sensitive-file blocker is visible"
 
   git -C "$repo" reset -q --hard HEAD
-  truncate -s 5242881 "$repo/large.bin"
+  dd if=/dev/zero of="$repo/large.bin" bs=1048576 count=5 2>/dev/null
+  printf x >>"$repo/large.bin"
   git -C "$repo" add large.bin
   set +e
   output="$(cd "$repo" && common/gates/check-large-files.sh 2>&1)"
@@ -194,6 +219,59 @@ test_mechanical_gates() {
   set -e
   [[ "$rc" != "0" ]] && pass "whitespace error is blocked by pre-commit gate" || fail "whitespace error is blocked by pre-commit gate"
   assert_contains "$output" "[AgentSkills][CHECK][START] whitespace" "pre-commit check name is visible"
+}
+
+test_reviewer_timeout() {
+  local repo output rc start end
+  repo="$(new_repo)"
+  printf 'change\n' >>"$repo/app.txt"
+  git -C "$repo" add app.txt
+  git -C "$repo" config agentskills.reviewTimeoutSeconds 1
+  git -C "$repo" config agentskills.reviewTimeoutKillGraceSeconds 1
+  make_stubborn_codex "$repo"
+
+  start="$(date +%s)"
+  set +e
+  output="$(cd "$repo" && PATH="$repo/fake-bin:$ORIGINAL_PATH" common/reviewers/review-staged-diff.sh 2>&1)"
+  rc=$?
+  set -e
+  end="$(date +%s)"
+  [[ "$rc" == "3" ]] && pass "TERM-resistant reviewer is forcibly stopped" || fail "TERM-resistant reviewer is forcibly stopped"
+  assert_contains "$output" "exceeded 1 seconds" "timeout reason is visible"
+  (((end - start) < 8)) && pass "timeout returns within bounded time" || fail "timeout returns within bounded time"
+
+  git -C "$repo" config agentskills.reviewTimeoutSeconds invalid
+  set +e
+  output="$(cd "$repo" && PATH="$repo/fake-bin:$ORIGINAL_PATH" common/reviewers/review-staged-diff.sh 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "3" ]] && pass "invalid timeout configuration is rejected" || fail "invalid timeout configuration is rejected"
+  assert_contains "$output" "must be a positive integer" "invalid timeout explains required format"
+}
+
+test_successful_reviewer_cleans_watchdog() {
+  local repo result output timer_pid
+  repo="$(new_repo)"
+  printf 'change\n' >>"$repo/app.txt"
+  git -C "$repo" add app.txt
+  git -C "$repo" config agentskills.reviewTimeoutSeconds 30
+  make_fake_codex "$repo"
+  make_tracked_sleep "$repo"
+  result='{"status":"OK","summary":"clean","model":"test","escalate":false,"findings":[]}'
+
+  output="$(cd "$repo" && PATH="$repo/fake-bin:$ORIGINAL_PATH" FAKE_CODEX_RESULT="$result" FAKE_CODEX_DELAY_SECONDS=1 FAKE_SLEEP_PID_FILE="$repo/sleep.pid" common/reviewers/review-staged-diff.sh 2>&1)"
+  assert_contains "$output" "[AgentSkills][LLM-REVIEW][PASS]" "successful reviewer completes"
+  if [[ -f "$repo/sleep.pid" ]]; then
+    timer_pid="$(cat "$repo/sleep.pid")"
+    if kill -0 "$timer_pid" 2>/dev/null; then
+      kill "$timer_pid" 2>/dev/null || true
+      fail "successful reviewer cleans watchdog timer"
+    else
+      pass "successful reviewer cleans watchdog timer"
+    fi
+  else
+    fail "successful reviewer started a watchdog timer"
+  fi
 }
 
 test_pre_push_policy() {
@@ -238,6 +316,8 @@ test_manual_cache_and_invalidation
 test_staged_path_parsing
 test_fallback_path
 test_mechanical_gates
+test_reviewer_timeout
+test_successful_reviewer_cleans_watchdog
 test_pre_push_policy
 test_setup_conflict_and_force
 
