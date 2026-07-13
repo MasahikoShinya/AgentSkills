@@ -1,6 +1,6 @@
 /**
  * テスト結果ディレクトリからHTMLプレイヤーを生成するスクリプト。
- * test-results/ 内の .webm 動画と screenshots/ 内の画像、results.json のメタを収集し、
+ * test-results/ 内の .webm 動画と各種スクリーンショット、results.json のメタを収集し、
  * カードベースのレポート player.html を出力する。
  *
  * Usage: npx tsx generate-player.ts
@@ -8,6 +8,10 @@
  * --- 設計方針 ---
  * - 完全に決定的: 同じ入力なら毎回同じHTMLを出力
  * - results.json があれば describe ブロックでタブ自動分類、無ければフラット表示
+ * - スクリーンショット収集は 3 段階の優先順位:
+ *   1) 動画ディレクトリ自身の *.png   ← testInfo.outputPath() ベース screenshot 新 API
+ *   2) screenshots/<scenarioName>/    ← scenario 文字列指定 (旧 API 互換)
+ *   3) screenshots/ 直下              ← 共通フォールバック
  * - test.info().annotations に積まれた情報はメタ表に追加表示（オプション）
  *   例: test.info().annotations.push({ type: 'screen', description: '/login' });
  */
@@ -26,10 +30,12 @@ interface ScenarioMeta {
     status: 'passed' | 'failed' | 'unknown';
     duration?: number;      // ms
     annotations: Annotation[];
+    specTitle?: string;     // results.json から取得した spec.title (= 「B1. ...」「W2. ...」付き)
 }
 
 interface Scenario {
-    name: string;
+    name: string;           // 動画ディレクトリ名 (sanitized)
+    displayName: string;    // 表示用シナリオ名 (= specTitle 優先、無ければ name)
     videoPath: string;
     screenshots: { name: string; path: string }[];
     meta: ScenarioMeta;
@@ -56,12 +62,28 @@ function loadResultsJson(): any | null {
 /**
  * Playwrightのresults.jsonから、シナリオ名に対応するメタ情報を引く。
  * - describeチェーンの末尾をカテゴリとする
- * - spec.title が scenarioName の部分文字列にマッチした最初のspecを採用
+ * - 紐付けは 2 段階の優先順位:
+ *   1) result.attachments[].path (video.webm) のディレクトリ名と scenarioName の完全一致
+ *      (Playwright が test title を sanitize + ハッシュ短縮した動画ディレクトリ名は title からは
+ *       再生成困難なので、attachments のパスを正として使うのが最も確実)
+ *   2) spec.title が scenarioName に含まれる (旧ロジック、フォールバック)
  * - ファイル単位のスイート (.ts/.tsx で終わるタイトル) はカテゴリから除外
  */
 function lookupMeta(scenarioName: string, results: any): ScenarioMeta {
     const fallback: ScenarioMeta = { category: 'すべて', status: 'unknown', annotations: [] };
     if (!results?.suites) return fallback;
+
+    function matchesByAttachment(result: any): boolean {
+        if (!result || !Array.isArray(result.attachments)) return false;
+        for (const att of result.attachments) {
+            if (att?.name === 'video' && typeof att?.path === 'string') {
+                // attachment path: .../<test-results>/<videoDirName>/video.webm
+                const m = att.path.match(/\/([^\/]+)\/video\.webm$/);
+                if (m && m[1] === scenarioName) return true;
+            }
+        }
+        return false;
+    }
 
     function recurse(suite: any, chain: string[]): ScenarioMeta | null {
         const title: string | undefined = suite.title;
@@ -70,16 +92,18 @@ function lookupMeta(scenarioName: string, results: any): ScenarioMeta {
 
         if (Array.isArray(suite.specs)) {
             for (const spec of suite.specs) {
-                if (typeof spec.title === 'string' && scenarioName.includes(spec.title)) {
-                    const test = spec.tests?.[0];
-                    const result = test?.results?.[0];
+                const testResult = spec.tests?.[0]?.results?.[0];
+                const matchA = matchesByAttachment(testResult);
+                const matchB = typeof spec.title === 'string' && scenarioName.includes(spec.title);
+                if (matchA || matchB) {
                     const specAnnotations: Annotation[] = Array.isArray(spec.annotations) ? spec.annotations : [];
-                    const resultAnnotations: Annotation[] = Array.isArray(result?.annotations) ? result.annotations : [];
+                    const resultAnnotations: Annotation[] = Array.isArray(testResult?.annotations) ? testResult.annotations : [];
                     return {
                         category: newChain.length > 0 ? newChain[newChain.length - 1] : 'すべて',
-                        status: (result?.status === 'passed' || result?.status === 'failed') ? result.status : 'unknown',
-                        duration: typeof result?.duration === 'number' ? result.duration : undefined,
+                        status: (testResult?.status === 'passed' || testResult?.status === 'failed') ? testResult.status : 'unknown',
+                        duration: typeof testResult?.duration === 'number' ? testResult.duration : undefined,
                         annotations: [...specAnnotations, ...resultAnnotations],
+                        specTitle: typeof spec.title === 'string' ? spec.title : undefined,
                     };
                 }
             }
@@ -118,8 +142,23 @@ function collectScenarios(): Scenario[] {
         const scenarioName = entry.name.replace(/-chromium$|-firefox$|-webkit$/, '');
         const screenshots: { name: string; path: string }[] = [];
 
+        // 1) 動画ディレクトリ自身の *.png を最優先で収集
+        //    (= testInfo.outputPath() ベース screenshot 新 API の出力 + Playwright 自動撮影 screenshot)
+        const videoDir = path.join(TEST_RESULTS_DIR, entry.name);
+        const localFiles = fs.readdirSync(videoDir, { withFileTypes: true })
+            .filter(f => f.isFile() && /\.(png|jpg|jpeg)$/i.test(f.name))
+            .map(f => f.name)
+            .sort();
+        for (const file of localFiles) {
+            screenshots.push({
+                name: file.replace(/\.(png|jpg|jpeg)$/i, ''),
+                path: `${entry.name}/${file}`,
+            });
+        }
+
+        // 2) screenshots/<scenarioName>/ を探す (旧 API 互換: scenario 文字列指定)
         const scenarioScreenshotDir = path.join(SCREENSHOTS_DIR, scenarioName);
-        if (fs.existsSync(scenarioScreenshotDir)) {
+        if (screenshots.length === 0 && fs.existsSync(scenarioScreenshotDir)) {
             const files = fs.readdirSync(scenarioScreenshotDir)
                 .filter(f => /\.(png|jpg|jpeg)$/i.test(f))
                 .sort();
@@ -130,6 +169,7 @@ function collectScenarios(): Scenario[] {
                 });
             }
         }
+        // 3) screenshots/ 直下を共通フォールバックとして収集
         if (screenshots.length === 0 && fs.existsSync(SCREENSHOTS_DIR)) {
             const files = fs.readdirSync(SCREENSHOTS_DIR, { withFileTypes: true })
                 .filter(f => f.isFile() && /\.(png|jpg|jpeg)$/i.test(f.name))
@@ -143,15 +183,17 @@ function collectScenarios(): Scenario[] {
             }
         }
 
+        const meta = lookupMeta(scenarioName, results);
         scenarios.push({
             name: scenarioName,
+            displayName: meta.specTitle ?? scenarioName,
             videoPath: `${entry.name}/video.webm`,
             screenshots,
-            meta: lookupMeta(scenarioName, results),
+            meta,
         });
     }
 
-    return scenarios.sort((a, b) => a.name.localeCompare(b.name));
+    return scenarios.sort((a, b) => a.displayName.localeCompare(b.displayName));
 }
 
 // ---------- カテゴリ分類 ----------
@@ -216,7 +258,7 @@ function cardHtml(scenario: Scenario, idx: number): string {
   <header class="card-head">
     ${badgeHtml(scenario.meta.status)}
     <span class="type-badge">${escapeHtml(scenario.meta.category)}</span>
-    <h2>${escapeHtml(scenario.name)}</h2>
+    <h2>${escapeHtml(scenario.displayName)}</h2>
   </header>
   <div class="card-body">
     <div class="meta">${metaListHtml(scenario)}</div>
@@ -526,6 +568,6 @@ console.log(`シナリオ数: ${scenarios.length} / カテゴリ数: ${categorie
 for (const c of categories) {
     console.log(`  [${c.name}] PASS ${c.pass} / FAIL ${c.fail} / 計 ${c.scenarios.length}`);
     for (const s of c.scenarios) {
-        console.log(`    - ${s.name} (status=${s.meta.status}, screenshots=${s.screenshots.length}, annotations=${s.meta.annotations.length})`);
+        console.log(`    - ${s.displayName} (status=${s.meta.status}, screenshots=${s.screenshots.length}, annotations=${s.meta.annotations.length})`);
     }
 }
