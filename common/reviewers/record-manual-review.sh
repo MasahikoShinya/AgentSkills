@@ -52,8 +52,13 @@ line_limit="${line_limit:-300}"
 file_limit="${file_limit:-10}"
 agentskills_collect_staged_risk "$line_limit" "$file_limit"
 escalated="$AGENTSKILLS_REVIEW_ESCALATE"
+if ! review_policy="$(agentskills_review_policy)"; then
+  echo "[AgentSkills][MANUAL-REVIEW][BLOCKER] Invalid review policy" >&2
+  echo "Reason: agentskills.reviewPolicy must be auto or independent." >&2
+  exit 2
+fi
 diff_hash="$(agentskills_hash_staged_diff)"
-context_fingerprint="$(agentskills_context_fingerprint "$repo_root" "$KIT_ROOT" "$escalated" "$line_limit" "$file_limit")"
+context_fingerprint="$(agentskills_context_fingerprint "$repo_root" "$KIT_ROOT" "$escalated" "$line_limit" "$file_limit" "$review_policy")"
 cache_dir="$(git rev-parse --git-path agentskills/reviews)/$context_fingerprint"
 runtime_name="$(agentskills_safe_cache_component "$runtime")"
 cache_file="$cache_dir/manual-$runtime_name.json"
@@ -62,16 +67,23 @@ mkdir -p "$cache_dir"
 jq -n \
   --arg model "manual:$runtime" \
   --arg hash "$diff_hash" \
+  --arg review_kind "$([[ "$runtime" == "codex-self-review" ]] && printf 'Self review' || printf 'Manual independent review')" \
   '{
     status: "OK",
-    summary: ("Manual independent review attested for staged diff " + $hash),
+    summary: ($review_kind + " attested for staged diff " + $hash),
     model: $model,
     escalate: false,
     findings: []
   }' >"$cache_file"
 
-echo "[AgentSkills][MANUAL-REVIEW][PASS] staged-diff"
-echo "Runtime: $runtime"
+if [[ "$runtime" == "codex-self-review" ]]; then
+  echo "[AgentSkills][SELF-REVIEW][OK] staged-diff"
+  echo "Runtime: Codex current session"
+else
+  echo "[AgentSkills][MANUAL-REVIEW][PASS] staged-diff"
+  echo "Runtime: $runtime"
+fi
 echo "Diff hash: $diff_hash"
 echo "Context fingerprint: $context_fingerprint"
+echo "Review policy: $review_policy"
 echo "Recorded: $cache_file"

@@ -1,6 +1,11 @@
 # Diff Review
 
-[AgentSkills][PROMPT][START] @diff-review
+After reading this file, report:
+
+```text
+[AgentSkills][PROMPT][START] ::diff-review
+Source: .agentskills/prompts/diff-review.md
+```
 
 Review only. Do not modify code, tests, staging, or `SESSION_BRIEF.md`.
 
@@ -17,4 +22,4 @@ Use `SESSION_BRIEF.md`, `git status`, `git diff`, `git diff --cached`, and relev
 
 Output exactly one overall result: `OK`, `WARNING`, or `BLOCKER`. List findings with file, line when known, evidence, reason, and recommended next action. Do not fix findings.
 
-[AgentSkills][PROMPT][END] @diff-review
+After the result, report `PROMPT END` with `Execution: completed` and the same overall result. If evidence cannot be collected, report `PROMPT BLOCKER` with the missing input or failed command instead of `PROMPT END`.

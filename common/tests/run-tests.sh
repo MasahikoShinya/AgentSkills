@@ -34,6 +34,17 @@ assert_contains() {
   fi
 }
 
+assert_not_contains() {
+  local value="$1"
+  local unexpected="$2"
+  local label="$3"
+  if [[ "$value" == *"$unexpected"* ]]; then
+    fail "$label (unexpected: $unexpected)"
+  else
+    pass "$label"
+  fi
+}
+
 new_repo() {
   local repo
   repo="$(mktemp -d "$TEST_ROOT/repo.XXXXXX")"
@@ -50,6 +61,27 @@ EOF
   printf 'base\n' >"$repo/app.txt"
   git -C "$repo" add .
   git -C "$repo" commit -qm baseline
+  printf '%s\n' "$repo"
+}
+
+new_target_repo() {
+  local repo
+  repo="$(mktemp -d "$TEST_ROOT/target.XXXXXX")"
+  git -C "$repo" init -q
+  git -C "$repo" config user.email test@example.com
+  git -C "$repo" config user.name AgentSkillsTest
+  printf '# Project Rules\n' >"$repo/AGENTS.md"
+  printf '%s\n' "$repo"
+}
+
+new_target_repo_with_symlinked_agents() {
+  local repo
+  repo="$(mktemp -d "$TEST_ROOT/target-symlink.XXXXXX")"
+  git -C "$repo" init -q
+  git -C "$repo" config user.email test@example.com
+  git -C "$repo" config user.name AgentSkillsTest
+  printf '# Project Rules\n' >"$repo/AGENTS-target.md"
+  ln -s AGENTS-target.md "$repo/AGENTS.md"
   printf '%s\n' "$repo"
 }
 
@@ -86,6 +118,38 @@ EOF
   chmod +x "$repo/fake-bin/sleep"
 }
 
+make_fake_gh() {
+  local repo="$1"
+  mkdir -p "$repo/fake-bin"
+  cat >"$repo/fake-bin/gh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "$1" == "pr" && "$2" == "view" ]]; then
+  if [[ "${FAKE_GH_VIEW_FAIL:-0}" == "1" ]]; then
+    echo "authentication required" >&2
+    exit 1
+  fi
+  printf '%s\n' '{"number":42,"url":"https://github.com/example/repo/pull/42","title":"Test PR","state":"OPEN","isDraft":false,"baseRefName":"main","headRefName":"feature/test","mergeable":"MERGEABLE","mergeStateStatus":"CLEAN","reviewDecision":""}'
+elif [[ "$1" == "pr" && "$2" == "checks" ]]; then
+  if [[ "${FAKE_GH_NO_CHECKS:-0}" == "1" ]]; then
+    echo "no checks reported on the 'feature/test' branch" >&2
+    exit 1
+  fi
+  printf '%s\n' 'unit-tests\tpass\t2m'
+elif [[ "$1" == "pr" && "$2" == "diff" && "$4" == "--name-only" ]]; then
+  if [[ "${FAKE_GH_DIFF_FAIL:-0}" == "1" ]]; then
+    echo "PR diff is unavailable" >&2
+    exit 1
+  fi
+  printf '%s\n' 'src/example.ts'
+else
+  echo "Unexpected gh arguments: $*" >&2
+  exit 2
+fi
+EOF
+  chmod +x "$repo/fake-bin/gh"
+}
+
 make_stubborn_codex() {
   local repo="$1"
   mkdir -p "$repo/fake-bin"
@@ -103,7 +167,11 @@ run_reviewer_with_result() {
   local output_file="$repo/reviewer.out"
   make_fake_codex "$repo"
   set +e
-  (cd "$repo" && PATH="$repo/fake-bin:$ORIGINAL_PATH" FAKE_CODEX_RESULT="$result" common/reviewers/review-staged-diff.sh) >"$output_file" 2>&1
+  (
+    cd "$repo"
+    unset CODEX_THREAD_ID
+    PATH="$repo/fake-bin:$ORIGINAL_PATH" FAKE_CODEX_RESULT="$result" common/reviewers/review-staged-diff.sh
+  ) >"$output_file" 2>&1
   TEST_RC=$?
   set -e
   TEST_OUTPUT="$(cat "$output_file")"
@@ -118,6 +186,9 @@ test_status_consistency() {
   run_reviewer_with_result "$repo" "$result"
   [[ "$TEST_RC" == "3" ]] && pass "status/finding contradiction is rejected" || fail "status/finding contradiction is rejected"
   assert_contains "$TEST_OUTPUT" "Invalid or inconsistent reviewer JSON" "contradiction reason is visible"
+  assert_contains "$TEST_OUTPUT" "Run state:" "invalid reviewer result exposes the run-state path"
+  assert_contains "$TEST_OUTPUT" "Log:" "invalid reviewer result exposes the log path"
+  assert_contains "$TEST_OUTPUT" "Result:" "invalid reviewer result preserves the result path"
 }
 
 test_evidence_required() {
@@ -137,7 +208,11 @@ test_manual_cache_and_invalidation() {
   git -C "$repo" add app.txt
   (cd "$repo" && common/reviewers/record-manual-review.sh --runtime claude --status OK) >/dev/null
   set +e
-  output="$(cd "$repo" && PATH="/usr/bin:/bin" common/reviewers/review-staged-diff.sh 2>&1)"
+  output="$(
+    cd "$repo"
+    unset CODEX_THREAD_ID
+    PATH="/usr/bin:/bin" common/reviewers/review-staged-diff.sh 2>&1
+  )"
   rc=$?
   set -e
   [[ "$rc" == "0" ]] && pass "manual cache works without Codex" || fail "manual cache works without Codex"
@@ -145,11 +220,57 @@ test_manual_cache_and_invalidation() {
 
   printf 'Changed confirmed scope.\n' >>"$repo/SESSION_BRIEF.md"
   set +e
-  output="$(cd "$repo" && PATH="/usr/bin:/bin" common/reviewers/review-staged-diff.sh 2>&1)"
+  output="$(
+    cd "$repo"
+    unset CODEX_THREAD_ID
+    PATH="/usr/bin:/bin" common/reviewers/review-staged-diff.sh 2>&1
+  )"
   rc=$?
   set -e
   [[ "$rc" == "3" ]] && pass "brief change invalidates manual cache" || fail "brief change invalidates manual cache"
   assert_contains "$output" "no valid manual review" "invalidated cache explains Codex fallback"
+}
+
+test_review_policy_and_nested_codex() {
+  local repo output rc result
+  result='{"status":"OK","summary":"clean","model":"test","escalate":false,"findings":[]}'
+
+  repo="$(new_repo)"
+  printf 'change\n' >>"$repo/app.txt"
+  git -C "$repo" add app.txt
+  output="$(cd "$repo" && common/reviewers/record-manual-review.sh --runtime codex-self-review --status OK 2>&1)"
+  assert_contains "$output" "[AgentSkills][SELF-REVIEW][OK]" "self-review attestation is labeled separately"
+
+  git -C "$repo" config agentskills.reviewPolicy independent
+  output="$(cd "$repo" && common/reviewers/record-manual-review.sh --runtime codex-self-review --status OK 2>&1)"
+  make_fake_codex "$repo"
+  output="$(
+    cd "$repo"
+    unset CODEX_THREAD_ID
+    PATH="$repo/fake-bin:$ORIGINAL_PATH" FAKE_CODEX_RESULT="$result" common/reviewers/review-staged-diff.sh 2>&1
+  )"
+  assert_contains "$output" "Cached: false" "independent policy ignores the self-review cache"
+
+  repo="$(new_repo)"
+  printf 'change\n' >>"$repo/app.txt"
+  git -C "$repo" add app.txt
+  make_fake_codex "$repo"
+  set +e
+  output="$(cd "$repo" && CODEX_THREAD_ID=active PATH="$repo/fake-bin:$ORIGINAL_PATH" common/reviewers/review-staged-diff.sh 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "2" ]] && pass "nested Codex review is blocked without a self-review cache" || fail "nested Codex review is blocked without a self-review cache"
+  assert_contains "$output" "Nested Codex reviewer disabled" "nested Codex block is explicit"
+  assert_contains "$output" "--runtime codex-self-review --status OK" "nested Codex block shows the self-review recording command"
+
+  git -C "$repo" config agentskills.reviewPolicy independent
+  set +e
+  output="$(cd "$repo" && CODEX_THREAD_ID=active PATH="$repo/fake-bin:$ORIGINAL_PATH" common/reviewers/review-staged-diff.sh 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "2" ]] && pass "independent policy blocks nested Codex review" || fail "independent policy blocks nested Codex review"
+  assert_contains "$output" "independent policy requires an external reviewer" "independent policy gives an external-review resolution"
+  assert_not_contains "$output" "--runtime codex-self-review --status OK" "independent policy does not suggest a self-review cache"
 }
 
 test_staged_path_parsing() {
@@ -181,10 +302,15 @@ test_fallback_path() {
   git -C "$repo" add app.txt
   git -C "$repo" config agentskills.kitPath common
   set +e
-  output="$(cd "$repo" && PATH="/usr/bin:/bin" common/gates/check-llm-review.sh 2>&1)"
+  output="$(
+    cd "$repo"
+    unset CODEX_THREAD_ID
+    PATH="/usr/bin:/bin" common/gates/check-llm-review.sh 2>&1
+  )"
   rc=$?
   set -e
   [[ "$rc" == "1" ]] && pass "missing Codex blocks automatic review" || fail "missing Codex blocks automatic review"
+  assert_contains "$output" '::subagent-review' "fallback displays the manual review pseudo-command"
   assert_contains "$output" "bash common/reviewers/record-manual-review.sh" "fallback uses configured kit path"
 }
 
@@ -232,17 +358,28 @@ test_reviewer_timeout() {
 
   start="$(date +%s)"
   set +e
-  output="$(cd "$repo" && PATH="$repo/fake-bin:$ORIGINAL_PATH" common/reviewers/review-staged-diff.sh 2>&1)"
+  output="$(
+    cd "$repo"
+    unset CODEX_THREAD_ID
+    PATH="$repo/fake-bin:$ORIGINAL_PATH" common/reviewers/review-staged-diff.sh 2>&1
+  )"
   rc=$?
   set -e
   end="$(date +%s)"
   [[ "$rc" == "3" ]] && pass "TERM-resistant reviewer is forcibly stopped" || fail "TERM-resistant reviewer is forcibly stopped"
   assert_contains "$output" "exceeded 1 seconds" "timeout reason is visible"
+  assert_contains "$output" "Run state:" "timeout exposes the run-state path"
+  assert_contains "$output" "Log:" "timeout exposes the log path"
+  assert_contains "$output" "Last log lines:" "timeout reports the captured log tail"
   (((end - start) < 8)) && pass "timeout returns within bounded time" || fail "timeout returns within bounded time"
 
   git -C "$repo" config agentskills.reviewTimeoutSeconds invalid
   set +e
-  output="$(cd "$repo" && PATH="$repo/fake-bin:$ORIGINAL_PATH" common/reviewers/review-staged-diff.sh 2>&1)"
+  output="$(
+    cd "$repo"
+    unset CODEX_THREAD_ID
+    PATH="$repo/fake-bin:$ORIGINAL_PATH" common/reviewers/review-staged-diff.sh 2>&1
+  )"
   rc=$?
   set -e
   [[ "$rc" == "3" ]] && pass "invalid timeout configuration is rejected" || fail "invalid timeout configuration is rejected"
@@ -259,7 +396,11 @@ test_successful_reviewer_cleans_watchdog() {
   make_tracked_sleep "$repo"
   result='{"status":"OK","summary":"clean","model":"test","escalate":false,"findings":[]}'
 
-  output="$(cd "$repo" && PATH="$repo/fake-bin:$ORIGINAL_PATH" FAKE_CODEX_RESULT="$result" FAKE_CODEX_DELAY_SECONDS=1 FAKE_SLEEP_PID_FILE="$repo/sleep.pid" common/reviewers/review-staged-diff.sh 2>&1)"
+  output="$(
+    cd "$repo"
+    unset CODEX_THREAD_ID
+    PATH="$repo/fake-bin:$ORIGINAL_PATH" FAKE_CODEX_RESULT="$result" FAKE_CODEX_DELAY_SECONDS=1 FAKE_SLEEP_PID_FILE="$repo/sleep.pid" common/reviewers/review-staged-diff.sh 2>&1
+  )"
   assert_contains "$output" "[AgentSkills][LLM-REVIEW][PASS]" "successful reviewer completes"
   if [[ -f "$repo/sleep.pid" ]]; then
     timer_pid="$(cat "$repo/sleep.pid")"
@@ -271,6 +412,60 @@ test_successful_reviewer_cleans_watchdog() {
     fi
   else
     fail "successful reviewer started a watchdog timer"
+  fi
+}
+
+test_pull_request_inspection() {
+  local repo output rc
+  repo="$(new_repo)"
+  make_fake_gh "$repo"
+  set +e
+  output="$(cd "$repo" && PATH="$repo/fake-bin:/usr/bin:/bin" common/reviewers/inspect-pull-request.sh 42 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "0" ]] && pass "pull-request inspection succeeds" || fail "pull-request inspection succeeds"
+  assert_contains "$output" "[AgentSkills][PR-REVIEW][START] #42" "PR number is displayed"
+  assert_contains "$output" "unit-tests" "PR checks are displayed"
+  assert_contains "$output" "src/example.ts" "PR changed files are displayed"
+  assert_contains "$output" "Review diff with: gh pr diff 42" "PR diff command is displayed"
+
+  set +e
+  output="$(cd "$repo" && PATH="$repo/fake-bin:/usr/bin:/bin" FAKE_GH_NO_CHECKS=1 common/reviewers/inspect-pull-request.sh 42 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "0" ]] && pass "PR inspection permits absent checks" || fail "PR inspection permits absent checks"
+  assert_contains "$output" "[AgentSkills][PR-REVIEW][SKIP] checks" "absent checks are skipped rather than warned"
+
+  set +e
+  output="$(cd "$repo" && PATH="$repo/fake-bin:/usr/bin:/bin" FAKE_GH_VIEW_FAIL=1 common/reviewers/inspect-pull-request.sh 42 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "2" ]] && pass "PR metadata failure blocks inspection" || fail "PR metadata failure blocks inspection"
+  assert_contains "$output" "[AgentSkills][PR-REVIEW][BLOCKER] PR metadata unavailable" "metadata failure is visible"
+  assert_contains "$output" "gh auth login" "metadata failure provides authentication resolution"
+
+  set +e
+  output="$(cd "$repo" && PATH="$repo/fake-bin:/usr/bin:/bin" FAKE_GH_DIFF_FAIL=1 common/reviewers/inspect-pull-request.sh 42 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "2" ]] && pass "PR diff failure blocks inspection" || fail "PR diff failure blocks inspection"
+  assert_contains "$output" "[AgentSkills][PR-REVIEW][BLOCKER] PR diff unavailable" "diff failure is visible"
+}
+
+test_pull_request_inspection_without_gh() {
+  local repo output rc
+  repo="$(new_repo)"
+  set +e
+  output="$(cd "$repo" && PATH="/usr/bin:/bin" common/reviewers/inspect-pull-request.sh 42 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "3" ]] && pass "missing GitHub CLI fails with the documented status" || fail "missing GitHub CLI fails with the documented status"
+  assert_contains "$output" "GitHub CLI not found" "missing GitHub CLI is visible"
+  assert_contains "$output" '::pr-review' "missing GitHub CLI names the pseudo-command"
+  if [[ "$output" == *"unbound variable"* ]]; then
+    fail "missing GitHub CLI does not expand pseudo-command text as a variable"
+  else
+    pass "missing GitHub CLI does not expand pseudo-command text as a variable"
   fi
 }
 
@@ -309,17 +504,100 @@ test_setup_conflict_and_force() {
   [[ "$(git -C "$repo" config agentskills.kitPath)" == "common" ]] && pass "setup records logical kit path" || fail "setup records logical kit path"
 }
 
+test_deploy() {
+  local repo conflict_repo symlink_repo output rc
+  repo="$(new_target_repo)"
+  output="$(bash "$SOURCE_COMMON/setup/deploy.sh" --claude --models "$repo" 2>&1)"
+  [[ -L "$repo/.agentskills" ]] && pass "deploy creates kit symlink" || fail "deploy creates kit symlink"
+  [[ "$(cd "$repo/.agentskills" && pwd -P)" == "$SOURCE_COMMON" ]] && pass "deploy symlink targets source kit" || fail "deploy symlink targets source kit"
+  assert_contains "$(cat "$repo/AGENTS.md")" "AgentSkills Common Rules" "deploy adds AGENTS loader"
+  assert_contains "$(cat "$repo/CLAUDE.md")" "AgentSkills Claude Rules" "deploy adds CLAUDE loader"
+  [[ -f "$repo/SESSION_BRIEF.md" ]] && pass "deploy creates session brief" || fail "deploy creates session brief"
+  [[ -f "$repo/AGENT_MODELS.md" ]] && pass "deploy creates model template on request" || fail "deploy creates model template on request"
+  assert_contains "$output" "[AgentSkills][DEPLOY][PASS] workflow-kit" "deploy reports completion"
+
+  output="$(bash "$SOURCE_COMMON/setup/deploy.sh" --claude --models "$repo" 2>&1)"
+  assert_contains "$output" "loader already present" "deploy is idempotent for managed loaders"
+  assert_contains "$output" ".agentskills already links to this kit" "deploy is idempotent for kit link"
+
+  conflict_repo="$(new_target_repo)"
+  mkdir "$conflict_repo/.agentskills"
+  set +e
+  output="$(bash "$SOURCE_COMMON/setup/deploy.sh" "$conflict_repo" 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "1" ]] && pass "deploy preserves an existing kit directory" || fail "deploy preserves an existing kit directory"
+  assert_contains "$output" "Existing .agentskills was not changed" "deploy conflict explains preservation"
+  if grep -Fq "AgentSkills Common Rules" "$conflict_repo/AGENTS.md"; then
+    fail "deploy conflict does not edit AGENTS.md"
+  else
+    pass "deploy conflict does not edit AGENTS.md"
+  fi
+
+  symlink_repo="$(new_target_repo_with_symlinked_agents)"
+  set +e
+  output="$(bash "$SOURCE_COMMON/setup/deploy.sh" "$symlink_repo" 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "1" ]] && pass "deploy rejects a symlinked AGENTS.md" || fail "deploy rejects a symlinked AGENTS.md"
+  [[ ! -e "$symlink_repo/.agentskills" && ! -L "$symlink_repo/.agentskills" ]] && pass "failed loader preflight leaves no kit artifact" || fail "failed loader preflight leaves no kit artifact"
+  assert_contains "$output" "Refusing to edit symlinked file: AGENTS.md" "symlinked loader failure is visible"
+}
+
+test_pseudo_command_execution_marker() {
+  local rules help help_output help_last_line
+  rules="$(cat "$SOURCE_COMMON/rules/AGENTS.base.md")"
+  help="$(cat "$SOURCE_COMMON/prompts/workflow-help.md")"
+  help_output="$(awk '
+    /^```text$/ { inside = 1; next }
+    inside && /^```$/ { exit }
+    inside { print }
+  ' "$SOURCE_COMMON/prompts/workflow-help.md")"
+  help_last_line="$(printf '%s\n' "$help_output" | awk 'NF { last = $0 } END { print last }')"
+  assert_contains "$rules" '[AgentSkills][EXECUTED] ::<command>' "rules define the pseudo-command execution marker"
+  assert_contains "$rules" 'Its absence means execution was not confirmed' "rules do not treat a missing marker as failure"
+  assert_contains "$help" '[AgentSkills][EXECUTED] ::help' "help defines its pseudo-command execution marker"
+  [[ "$help_last_line" == '[AgentSkills][EXECUTED] ::help' ]] && pass "help display ends with its pseudo-command execution marker" || fail "help display ends with its pseudo-command execution marker"
+}
+
+test_workflow_command_routes() {
+  local rules sdd_prompt route command prompt expected
+  rules="$(cat "$SOURCE_COMMON/rules/AGENTS.base.md")"
+  for route in 'resolve:resolve.md' 'sdd_tdd:sdd_tdd.md' 'ui-mock:ui-mock.md' 'test-plan:test-plan.md'; do
+    command="${route%%:*}"
+    prompt="${route#*:}"
+    [[ -f "$SOURCE_COMMON/prompts/$prompt" ]] && pass "$command prompt file exists" || fail "$command prompt file exists"
+    expected="| \`::$command\` | \`.agentskills/prompts/$prompt\`"
+    assert_contains "$rules" "$expected" "rules route $command to its prompt"
+  done
+  sdd_prompt="$(cat "$SOURCE_COMMON/prompts/sdd_tdd.md")"
+  assert_contains "$sdd_prompt" 'required SDD specification artifact' "SDD and TDD command records its specification artifact"
+  assert_contains "$sdd_prompt" 'Do not implement without the required SDD specification artifact and test evidence.' "SDD and TDD command requires test evidence before implementation"
+  assert_contains "$rules" 'installed `test-orchestrator` skill' "test-plan requires the installed test-orchestrator skill"
+  if [[ "$rules" == *'converge-bugfix'* ]]; then
+    fail "rules no longer expose the previous convergence command"
+  else
+    pass "rules no longer expose the previous convergence command"
+  fi
+}
+
 printf 'TAP version 13\n'
 test_status_consistency
 test_evidence_required
 test_manual_cache_and_invalidation
+test_review_policy_and_nested_codex
 test_staged_path_parsing
 test_fallback_path
 test_mechanical_gates
 test_reviewer_timeout
 test_successful_reviewer_cleans_watchdog
+test_pull_request_inspection
+test_pull_request_inspection_without_gh
 test_pre_push_policy
 test_setup_conflict_and_force
+test_deploy
+test_pseudo_command_execution_marker
+test_workflow_command_routes
 
 if ((FAIL_COUNT > 0)); then
   printf '# %d test assertions failed\n' "$FAIL_COUNT" >&2
