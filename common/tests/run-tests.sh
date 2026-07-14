@@ -74,6 +74,17 @@ new_target_repo() {
   printf '%s\n' "$repo"
 }
 
+new_target_repo_with_symlinked_agents() {
+  local repo
+  repo="$(mktemp -d "$TEST_ROOT/target-symlink.XXXXXX")"
+  git -C "$repo" init -q
+  git -C "$repo" config user.email test@example.com
+  git -C "$repo" config user.name AgentSkillsTest
+  printf '# Project Rules\n' >"$repo/AGENTS-target.md"
+  ln -s AGENTS-target.md "$repo/AGENTS.md"
+  printf '%s\n' "$repo"
+}
+
 make_fake_codex() {
   local repo="$1"
   mkdir -p "$repo/fake-bin"
@@ -494,7 +505,7 @@ test_setup_conflict_and_force() {
 }
 
 test_deploy() {
-  local repo conflict_repo output rc
+  local repo conflict_repo symlink_repo output rc
   repo="$(new_target_repo)"
   output="$(bash "$SOURCE_COMMON/setup/deploy.sh" --claude --models "$repo" 2>&1)"
   [[ -L "$repo/.agentskills" ]] && pass "deploy creates kit symlink" || fail "deploy creates kit symlink"
@@ -522,6 +533,15 @@ test_deploy() {
   else
     pass "deploy conflict does not edit AGENTS.md"
   fi
+
+  symlink_repo="$(new_target_repo_with_symlinked_agents)"
+  set +e
+  output="$(bash "$SOURCE_COMMON/setup/deploy.sh" "$symlink_repo" 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "1" ]] && pass "deploy rejects a symlinked AGENTS.md" || fail "deploy rejects a symlinked AGENTS.md"
+  [[ ! -e "$symlink_repo/.agentskills" && ! -L "$symlink_repo/.agentskills" ]] && pass "failed loader preflight leaves no kit artifact" || fail "failed loader preflight leaves no kit artifact"
+  assert_contains "$output" "Refusing to edit symlinked file: AGENTS.md" "symlinked loader failure is visible"
 }
 
 test_pseudo_command_execution_marker() {

@@ -22,6 +22,7 @@ Add the `::resolve`, `::ui-mock`, and `::test-plan` pseudo-commands, make `::sdd
 - Review start and failure output show the run-state and log paths. Invalid JSON also preserves the returned result file.
 - `agentskills.reviewPolicy=auto` accepts an `OK` `codex-self-review` cache produced by `::resolve` or `::sdd_tdd`; `independent` requires an external reviewer and ignores self-review caches.
 - When running inside a Codex session without a usable cache, the gate blocks immediately rather than starting a nested `codex exec`.
+- `deploy.sh` validates requested loader files before creating `.agentskills`; a blocked loader preflight leaves no deployment artifact.
 
 ## Current Problem
 
@@ -29,7 +30,7 @@ The workflow needs distinct entry points for rapid bounded resolution, strict SD
 
 ## Targets
 
-- Common rules, prompts, and workflow-help prompt
+- Common rules, prompts, workflow-help prompt, and deployment setup
 - Common README and synchronized design documents
 - Reviewer and gate diagnostics, regression tests, and this brief
 

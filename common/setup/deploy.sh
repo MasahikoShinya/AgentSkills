@@ -78,10 +78,9 @@ if [[ "$TARGET_ROOT" == "$KIT_ROOT" || "$TARGET_ROOT" == "$(cd "$KIT_ROOT/.." &&
   exit 1
 fi
 
-ensure_loader() {
+validate_loader() {
   local file="$1"
   local title="$2"
-  local body="$3"
   local begin="<!-- AgentSkills $title: BEGIN -->"
   local end="<!-- AgentSkills $title: END -->"
 
@@ -89,9 +88,7 @@ ensure_loader() {
     echo "[AgentSkills][DEPLOY][BLOCKER] Refusing to edit symlinked file: ${file#$TARGET_ROOT/}" >&2
     return 1
   fi
-  if [[ -f "$file" ]] && ! grep -Fq "$begin" "$file"; then
-    :
-  elif [[ -e "$file" ]] && [[ ! -f "$file" ]]; then
+  if [[ -e "$file" ]] && [[ ! -f "$file" ]]; then
     echo "[AgentSkills][DEPLOY][BLOCKER] Expected a regular file: ${file#$TARGET_ROOT/}" >&2
     return 1
   fi
@@ -100,6 +97,18 @@ ensure_loader() {
       echo "[AgentSkills][DEPLOY][BLOCKER] Incomplete managed block: ${file#$TARGET_ROOT/}" >&2
       return 1
     fi
+  fi
+}
+
+ensure_loader() {
+  local file="$1"
+  local title="$2"
+  local body="$3"
+  local begin="<!-- AgentSkills $title: BEGIN -->"
+  local end="<!-- AgentSkills $title: END -->"
+
+  validate_loader "$file" "$title"
+  if [[ -f "$file" ]] && grep -Fq "$begin" "$file"; then
     echo "[AgentSkills][DEPLOY][SKIP] ${file#$TARGET_ROOT/} loader already present"
     return 0
   fi
@@ -114,6 +123,19 @@ ensure_loader() {
 echo "[AgentSkills][DEPLOY][START] workflow-kit"
 echo "Source: $KIT_ROOT"
 echo "Target: $TARGET_ROOT"
+
+agents_body='## AgentSkills Common Rules
+
+Before starting AgentSkills workflow work, read and follow `.agentskills/rules/AGENTS.base.md`.
+Use `::help` to display the available pseudo-commands and execution evidence.'
+validate_loader "$TARGET_ROOT/AGENTS.md" "Common Rules"
+
+if ((include_claude == 1)); then
+  claude_body='## AgentSkills Claude Rules
+
+Read and follow `.agentskills/rules/CLAUDE.base.md` together with the project-root `AGENTS.md`.'
+  validate_loader "$TARGET_ROOT/CLAUDE.md" "Claude Rules"
+fi
 
 kit_target="$TARGET_ROOT/.agentskills"
 if [[ -e "$kit_target" || -L "$kit_target" ]]; then
@@ -132,16 +154,9 @@ else
   echo "[AgentSkills][DEPLOY][PASS] .agentskills linked"
 fi
 
-agents_body='## AgentSkills Common Rules
-
-Before starting AgentSkills workflow work, read and follow `.agentskills/rules/AGENTS.base.md`.
-Use `::help` to display the available pseudo-commands and execution evidence.'
 ensure_loader "$TARGET_ROOT/AGENTS.md" "Common Rules" "$agents_body"
 
 if ((include_claude == 1)); then
-  claude_body='## AgentSkills Claude Rules
-
-Read and follow `.agentskills/rules/CLAUDE.base.md` together with the project-root `AGENTS.md`.'
   ensure_loader "$TARGET_ROOT/CLAUDE.md" "Claude Rules" "$claude_body"
 fi
 
