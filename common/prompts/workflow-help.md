@@ -9,7 +9,10 @@ Display the following compact help exactly enough to identify each entry point. 
 参照: .agentskills/prompts/workflow-help.md
 [AgentSkills][HELP][START]
 疑似コマンド
-  ::converge-bugfix       仕様 -> テスト -> 実装 -> レビュー -> ゲート
+  ::resolve       レビュー指摘・不具合を最小修正。仕様書は強制しない
+  ::sdd_tdd       SESSION_BRIEF仕様 -> 失敗テスト -> 実装 -> レビュー -> ゲート
+  ::ui-mock       静的HTMLのUIモックを docs/ui-mocks/ に作成
+  ::test-plan     test-orchestratorの計画フェーズで docs/test-plans/ を作成
   ::diff-review           作業ツリーと staged 差分をレビュー。変更しない
   ::subagent-review       親会話に依存しない独立レビュー。変更しない
   ::pr-review [PR]        GitHub PR を読み取り専用でレビュー
@@ -31,6 +34,8 @@ Git 操作によるトリガー（Hook 導入後）
 注意: Hook は任意導入です。疑似コマンドはエージェントへの指示であり、shell command ではありません。
 実行証跡: 疑似コマンドは最終行の [AgentSkills][EXECUTED] ::<command>。::gate、Hook、script = 端末の status 行。
 commit 可否: 最終 GATE / HOOK が PASS なら続行可。BLOCKER / FAIL なら commit は停止。WARNING は最終 status を確認する。
+review policy: auto は収束フローの SELF-REVIEW を使う。independent は外部reviewerを必須にする。
+Codexセッション内でSELF-REVIEWがなければ、子Codexを起動せず即時BLOCKERになる。
 EXECUTED がなければ疑似コマンドの実行は未確認です。失敗とは断定しません。
 [AgentSkills][HELP][PASS]
 [AgentSkills][PROMPT][END] ::help

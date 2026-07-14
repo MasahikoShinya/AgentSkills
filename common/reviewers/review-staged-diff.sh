@@ -145,6 +145,11 @@ line_limit="${line_limit:-300}"
 file_limit="${file_limit:-10}"
 agentskills_collect_staged_risk "$line_limit" "$file_limit"
 ESCALATED="${AGENTSKILLS_REVIEW_ESCALATED:-$AGENTSKILLS_REVIEW_ESCALATE}"
+if ! REVIEW_POLICY="$(agentskills_review_policy)"; then
+  echo "[AgentSkills][LLM-REVIEW][FAIL] Invalid review policy" >&2
+  echo "Reason: agentskills.reviewPolicy must be auto or independent." >&2
+  exit 3
+fi
 
 if [[ "$ESCALATED" == "1" ]]; then
   MODEL="$(agentskills_model_from_markdown "$MODELS_FILE" 6)"
@@ -155,14 +160,54 @@ else
 fi
 MODEL="${MODEL:-auto}"
 DIFF_HASH="$(agentskills_hash_staged_diff)"
-CONTEXT_FINGERPRINT="$(agentskills_context_fingerprint "$REPO_ROOT" "$KIT_ROOT" "$ESCALATED" "$line_limit" "$file_limit")"
+CONTEXT_FINGERPRINT="$(agentskills_context_fingerprint "$REPO_ROOT" "$KIT_ROOT" "$ESCALATED" "$line_limit" "$file_limit" "$REVIEW_POLICY")"
 CACHE_DIR="$(git rev-parse --git-path agentskills/reviews)/$CONTEXT_FINGERPRINT"
 MODEL_CACHE_NAME="$(agentskills_safe_cache_component "$MODEL")"
 CACHE_FILE="$CACHE_DIR/codex-$MODEL_CACHE_NAME.json"
 mkdir -p "$CACHE_DIR"
 
+RUN_DIR="$CACHE_DIR/runs"
+RUN_ID="$(date +%s)-$$-$RANDOM"
+RUN_STATE_FILE="$RUN_DIR/codex-$MODEL_CACHE_NAME-$RUN_ID.state"
+RUN_LOG_FILE="$RUN_DIR/codex-$MODEL_CACHE_NAME-$RUN_ID.log"
+RUN_RESULT_FILE="$RUN_DIR/codex-$MODEL_CACHE_NAME-$RUN_ID.json"
+
+write_run_state() {
+  local status="$1"
+  local reason="$2"
+  mkdir -p "$RUN_DIR"
+  {
+    printf 'status=%s\n' "$status"
+    printf 'reason=%s\n' "$reason"
+    printf 'diff_hash=%s\n' "$DIFF_HASH"
+    printf 'context_fingerprint=%s\n' "$CONTEXT_FINGERPRINT"
+    printf 'model=%s\n' "$MODEL"
+  } >"$RUN_STATE_FILE"
+}
+
+show_run_artifacts() {
+  echo "Run state: $RUN_STATE_FILE" >&2
+  echo "Log: $RUN_LOG_FILE" >&2
+  if [[ -f "$RUN_RESULT_FILE" ]]; then
+    echo "Result: $RUN_RESULT_FILE" >&2
+  fi
+}
+
+persist_failed_result() {
+  local result_file="$1"
+  local reason="$2"
+  if [[ -s "$result_file" ]]; then
+    cp "$result_file" "$RUN_RESULT_FILE"
+  fi
+  write_run_state "FAIL" "$reason"
+  show_run_artifacts
+}
+
 for cached_result in "$CACHE_DIR"/manual-*.json "$CACHE_FILE"; do
   [[ -f "$cached_result" ]] || continue
+  if [[ "$REVIEW_POLICY" == "independent" && "$(basename "$cached_result")" == manual-* ]]; then
+    continue
+  fi
   if result_is_valid "$cached_result" && jq -e '.status == "OK"' "$cached_result" >/dev/null 2>&1; then
     print_result "$cached_result" true
     exit 0
@@ -170,25 +215,46 @@ for cached_result in "$CACHE_DIR"/manual-*.json "$CACHE_FILE"; do
   echo "[AgentSkills][LLM-REVIEW][WARNING] Ignoring invalid cache: $cached_result" >&2
 done
 
+if [[ -n "${CODEX_THREAD_ID:-}" ]]; then
+  echo "[AgentSkills][LLM-REVIEW][BLOCKER] Nested Codex reviewer disabled" >&2
+  echo "Reason: A Codex session cannot reliably start an independent codex exec reviewer." >&2
+  if [[ "$REVIEW_POLICY" == "independent" ]]; then
+    echo "Resolution: The independent policy requires an external reviewer." >&2
+    echo "Run git commit from a regular terminal with Codex available, or use another reviewer runtime." >&2
+  else
+    echo "Resolution: Complete the required scope-isolated self-review, then record it:" >&2
+    printf '  bash %q/reviewers/record-manual-review.sh --runtime codex-self-review --status OK\n' "$KIT_ROOT" >&2
+  fi
+  write_run_state "BLOCKER" "Nested Codex reviewer disabled."
+  show_run_artifacts
+  exit 2
+fi
+
 if ! command -v codex >/dev/null 2>&1; then
   echo "[AgentSkills][LLM-REVIEW][FAIL] staged-diff" >&2
   echo "Reason: Codex is unavailable and no valid manual review exists for this context." >&2
+  write_run_state "FAIL" "Codex is unavailable."
+  show_run_artifacts
   exit 3
 fi
 
+write_run_state "START" "Codex reviewer launched."
+: >"$RUN_LOG_FILE"
 echo "[AgentSkills][LLM-REVIEW][START] staged-diff"
 echo "Runtime: Codex"
 echo "Role: $ROLE"
+echo "Review policy: $REVIEW_POLICY"
 echo "Configured model: $MODEL"
 echo "Diff hash: $DIFF_HASH"
 echo "Context fingerprint: $CONTEXT_FINGERPRINT"
 echo "Brief: SESSION_BRIEF.md"
 echo "Prompt: $PROMPT_FILE"
+echo "Run state: $RUN_STATE_FILE"
+echo "Log: $RUN_LOG_FILE"
 
 result_tmp="$(mktemp)"
-log_tmp="$(mktemp)"
 prompt_tmp="$(mktemp)"
-trap 'rm -f "$result_tmp" "$log_tmp" "$prompt_tmp"' EXIT
+trap 'rm -f "$result_tmp" "$prompt_tmp"' EXIT
 
 cat >"$prompt_tmp" <<EOF
 You are the independent read-only pre-commit reviewer for AgentSkills.
@@ -227,25 +293,32 @@ if [[ ! "$review_kill_grace" =~ ^[1-9][0-9]*$ ]]; then
   exit 3
 fi
 
-if ! run_with_timeout "$review_timeout" "$review_kill_grace" "$prompt_tmp" "$log_tmp" codex "${codex_args[@]}"; then
+if ! run_with_timeout "$review_timeout" "$review_kill_grace" "$prompt_tmp" "$RUN_LOG_FILE" codex "${codex_args[@]}"; then
   echo "[AgentSkills][LLM-REVIEW][FAIL] Codex reviewer unavailable" >&2
   if [[ "${AGENTSKILLS_COMMAND_TIMED_OUT:-0}" == "1" ]]; then
     echo "Reason: codex exec exceeded ${review_timeout} seconds." >&2
+    persist_failed_result "$result_tmp" "codex exec exceeded ${review_timeout} seconds."
   else
     echo "Reason: codex exec failed." >&2
+    persist_failed_result "$result_tmp" "codex exec failed."
   fi
-  tail -20 "$log_tmp" >&2 || true
+  echo "Last log lines:" >&2
+  tail -20 "$RUN_LOG_FILE" >&2 || true
   exit 3
 fi
 
 if ! result_is_valid "$result_tmp"; then
   echo "[AgentSkills][LLM-REVIEW][FAIL] Invalid or inconsistent reviewer JSON" >&2
   echo "Reason: The result must match the schema and status must match finding severities." >&2
+  persist_failed_result "$result_tmp" "Invalid or inconsistent reviewer JSON."
   sed -n '1,120p' "$result_tmp" >&2
   exit 3
 fi
 if [[ "$ESCALATED" != "1" ]] && [[ "$(jq -r '.escalate' "$result_tmp")" == "true" ]]; then
   echo "[AgentSkills][LLM-REVIEW][WARNING] Escalation requested"
+  cp "$result_tmp" "$RUN_RESULT_FILE"
+  write_run_state "ESCALATED" "A stronger reviewer was requested."
+  show_run_artifacts
   AGENTSKILLS_REVIEW_ESCALATED=1 "$0"
   exit $?
 fi
@@ -254,9 +327,13 @@ print_result "$result_tmp" false
 status="$(jq -r '.status' "$result_tmp")"
 if [[ "$status" == "OK" ]]; then
   cp "$result_tmp" "$CACHE_FILE"
+  write_run_state "PASS" "Review completed with OK."
   echo "[AgentSkills][LLM-REVIEW][PASS] review cached"
   exit 0
 fi
 
+cp "$result_tmp" "$RUN_RESULT_FILE"
+write_run_state "$status" "Review completed with $status."
+show_run_artifacts
 echo "Commit: aborted" >&2
 exit 2

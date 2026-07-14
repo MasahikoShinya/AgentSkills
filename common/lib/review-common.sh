@@ -103,11 +103,12 @@ agentskills_context_fingerprint() {
   local escalated="$3"
   local line_limit="$4"
   local file_limit="$5"
+  local review_policy="${6:-auto}"
   local input
 
   {
-    printf 'format=2\n'
-    printf 'escalated=%s\nline_limit=%s\nfile_limit=%s\n' "$escalated" "$line_limit" "$file_limit"
+    printf 'format=3\n'
+    printf 'escalated=%s\nline_limit=%s\nfile_limit=%s\nreview_policy=%s\n' "$escalated" "$line_limit" "$file_limit" "$review_policy"
     git diff --cached --binary --no-ext-diff
     for input in \
       "$repo_root/SESSION_BRIEF.md" \
@@ -127,6 +128,20 @@ agentskills_context_fingerprint() {
       fi
     done
   } | agentskills_hash_stream
+}
+
+agentskills_review_policy() {
+  local policy
+  policy="$(git config --local --get agentskills.reviewPolicy || true)"
+  policy="${policy:-auto}"
+  case "$policy" in
+    auto|independent)
+      printf '%s\n' "$policy"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 }
 
 agentskills_safe_cache_component() {

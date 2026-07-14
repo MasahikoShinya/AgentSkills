@@ -9,7 +9,7 @@ Skillの自動発動には依存しません。共通基盤はMarkdown、shell s
 | Trigger | 起動する処理 |
 |---|---|
 | 自動駆動 | `AGENTS.md`／`CLAUDE.md`、Mode Selector、SESSION_BRIEF、標準収束フロー |
-| ユーザー指示 | `::converge-bugfix`、`::diff-review`、`::subagent-review`、`::pr-review`、`::failure-analysis`、`::gate`、`::help` |
+| ユーザー指示 | `::resolve`、`::sdd_tdd`、`::ui-mock`、`::test-plan`、`::diff-review`、`::subagent-review`、`::pr-review`、`::failure-analysis`、`::gate`、`::help` |
 | ローカルGit Hook | pre-commitの機械gateとCodex review、pre-pushの保護ブランチ検査 |
 | GitHubイベント | 将来対応。v0.1では実装しない |
 
@@ -92,7 +92,10 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 ## 擬似コマンド
 
 ```text
-::converge-bugfix
+::resolve
+::sdd_tdd
+::ui-mock
+::test-plan
 ::diff-review
 ::subagent-review
 ::pr-review 123
@@ -102,6 +105,10 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 ```
 
 擬似コマンドはslash commandや実行ファイルではありません。自動ロードされた`AGENTS.md`が対応する`prompts/*.md`またはgateへ配送します。
+
+`::resolve`はレビュー指摘・不具合・確定した限定修正を扱います。新しい仕様書やタスクは作りません。`::sdd_tdd`は厳格な収束フローであり、Phase 1で採用仕様を`SESSION_BRIEF.md`へ保存してから、失敗テスト、実装、review、gateへ進みます。
+
+`::ui-mock`は`docs/ui-mocks/<slug>.html`に静的HTMLのUI仕様モックを作ります。`::test-plan`は利用可能な`test-orchestrator`スキルの計画フェーズだけを使い、`docs/test-plans/<slug>.md`に受け入れ条件とテスト計画を作ります。両方ともExpansion用の下書きであり、採用後に`::sdd_tdd`へ渡します。
 
 `::help`は、疑似コマンド、`git commit`／`git push`でHookが行う検査、直接実行できる主要scriptをコンパクトに表示します。表示のみで、Hookやreviewerは実行しません。疑似コマンドが実際に認識・配送された場合だけ、回答の最終行に`[AgentSkills][EXECUTED] ::<command>`を表示します。この行は起動確認専用であり、review・test・gate・hookの成功を意味しません。それらは既存のcomponent statusで判断します。`EXECUTED`がなければ疑似コマンドの実行は未確認であり、失敗とは断定しません。`::gate`・Hook・scriptは端末のstatus行を実行証跡とします。
 
@@ -150,6 +157,20 @@ Codex reviewは`AGENTS.md`、`SESSION_BRIEF.md`、`git status`、`git diff --cac
 結果は`OK / WARNING / BLOCKER`です。`WARNING`と`BLOCKER`はfinding、ファイル、行、根拠、理由、推奨対応を表示してcommitを止めます。top-level statusとfindingの最大severityが一致しない結果や、根拠がないfindingは無効として停止します。
 
 有効な`OK`は`.git/agentskills/reviews/<context-fingerprint>/`へキャッシュされます。指紋にはstaged diff、SESSION_BRIEF、ルール、モデル設定、prompt、schema、review script、リスク判定と閾値が含まれます。したがって、diffが同じでもreview条件が変われば再reviewします。通常reviewとescalation review、およびモデル別の結果は分離されます。
+
+非cacheのCodex reviewは、同じcontext directoryの`runs/`へrun-stateとCodexのstdout/stderr logを保存します。`START`、`FAIL`、`WARNING`、`BLOCKER`の出力にはそのパスを表示します。terminal statusが欠けた場合は、run-stateが`START`のまま残るため、表示されたlogとstateを確認してから手動reviewまたは明示skipを選びます。JSON不正時は返却されたresult JSONも保存します。
+
+### Review Policy
+
+既定の`auto`では、`::resolve`と`::sdd_tdd`がPhase 4で行うscope-isolated `SELF-REVIEW`を現在のstaged diffへ記録し、pre-commitはそのcacheを使います。これは独立reviewではありませんが、Codexセッション内で子`codex exec`を起動して停止することを避けます。
+
+独立reviewを必須にするプロジェクトでは、次を設定します。`codex-self-review`を含む手動cacheは使わず、外部Codex reviewerまたは別runtimeのreviewを要求します。
+
+```bash
+git config --local agentskills.reviewPolicy independent
+```
+
+Codexセッション内で有効なreview cacheがない場合、nested `codex exec`は起動せず、`auto`ではself-reviewの記録、`independent`では外部terminalまたは別runtimeでのreviewを案内して即時`BLOCKER`にします。通常terminalでは従来どおり外部`codex exec`を使います。
 
 `SESSION_BRIEF.md`がない場合もcommitを止めます。
 
