@@ -227,7 +227,7 @@ test_fallback_path() {
   rc=$?
   set -e
   [[ "$rc" == "1" ]] && pass "missing Codex blocks automatic review" || fail "missing Codex blocks automatic review"
-  assert_contains "$output" '#$subagent-review' "fallback displays the manual review pseudo-command"
+  assert_contains "$output" '::subagent-review' "fallback displays the manual review pseudo-command"
   assert_contains "$output" "bash common/reviewers/record-manual-review.sh" "fallback uses configured kit path"
 }
 
@@ -363,7 +363,7 @@ test_pull_request_inspection_without_gh() {
   set -e
   [[ "$rc" == "3" ]] && pass "missing GitHub CLI fails with the documented status" || fail "missing GitHub CLI fails with the documented status"
   assert_contains "$output" "GitHub CLI not found" "missing GitHub CLI is visible"
-  assert_contains "$output" '#$pr-review' "missing GitHub CLI names the pseudo-command"
+  assert_contains "$output" '::pr-review' "missing GitHub CLI names the pseudo-command"
   if [[ "$output" == *"unbound variable"* ]]; then
     fail "missing GitHub CLI does not expand pseudo-command text as a variable"
   else

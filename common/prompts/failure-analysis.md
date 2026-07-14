@@ -3,7 +3,7 @@
 After reading this file, report:
 
 ```text
-[AgentSkills][PROMPT][START] #$failure-analysis
+[AgentSkills][PROMPT][START] ::failure-analysis
 Source: .agentskills/prompts/failure-analysis.md
 ```
 

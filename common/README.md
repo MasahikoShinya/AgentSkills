@@ -9,7 +9,7 @@ Skillの自動発動には依存しません。共通基盤はMarkdown、shell s
 | Trigger | 起動する処理 |
 |---|---|
 | 自動駆動 | `AGENTS.md`／`CLAUDE.md`、Mode Selector、SESSION_BRIEF、標準収束フロー |
-| ユーザー指示 | `#$converge-bugfix`、`#$diff-review`、`#$subagent-review`、`#$pr-review`、`#$failure-analysis`、`#$gate`、`#$help` |
+| ユーザー指示 | `::converge-bugfix`、`::diff-review`、`::subagent-review`、`::pr-review`、`::failure-analysis`、`::gate`、`::help` |
 | ローカルGit Hook | pre-commitの機械gateとCodex review、pre-pushの保護ブランチ検査 |
 | GitHubイベント | 将来対応。v0.1では実装しない |
 
@@ -92,29 +92,29 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 ## 擬似コマンド
 
 ```text
-#$converge-bugfix
-#$diff-review
-#$subagent-review
-#$pr-review 123
-#$failure-analysis
-#$gate
-#$help
+::converge-bugfix
+::diff-review
+::subagent-review
+::pr-review 123
+::failure-analysis
+::gate
+::help
 ```
 
 擬似コマンドはslash commandや実行ファイルではありません。自動ロードされた`AGENTS.md`が対応する`prompts/*.md`またはgateへ配送します。
 
-`#$help`は、疑似コマンド、`git commit`／`git push`でHookが行う検査、直接実行できる主要scriptをコンパクトに表示します。表示のみで、Hookやreviewerは実行しません。prompt経由の疑似コマンドはチャットの`[AgentSkills][PROMPT][START]`と`[AgentSkills][PROMPT][END]`、`#$gate`・Hook・scriptは端末のstatus行を実行証跡とします。完了表示がなければ、実行は確認できません。
+`::help`は、疑似コマンド、`git commit`／`git push`でHookが行う検査、直接実行できる主要scriptをコンパクトに表示します。表示のみで、Hookやreviewerは実行しません。prompt経由の疑似コマンドはチャットの`[AgentSkills][PROMPT][START]`と`[AgentSkills][PROMPT][END]`、`::gate`・Hook・scriptは端末のstatus行を実行証跡とします。完了表示がなければ、実行は確認できません。
 
 commitは最終`GATE`または`HOOK`が`PASS`の場合だけ続行します。`BLOCKER`または`FAIL`はそのcommitを停止します。`WARNING`だけでは可否は決まらないため、最終statusを確認します。
 
 ### Pull Request Review
 
-`#$pr-review`はGitHub Pull Requestを読み取り専用でレビューします。PR番号またはURLを渡します。引数を省略した場合は、現在ブランチに対応するPRを確認します。
+`::pr-review`はGitHub Pull Requestを読み取り専用でレビューします。PR番号またはURLを渡します。引数を省略した場合は、現在ブランチに対応するPRを確認します。
 
 ```text
-#$pr-review 123
-#$pr-review https://github.com/owner/repository/pull/123
-#$pr-review
+::pr-review 123
+::pr-review https://github.com/owner/repository/pull/123
+::pr-review
 ```
 
 この手順は`gh pr view`、`gh pr checks`、`gh pr diff`を根拠に、base/head、checks、mergeability、差分のfindingsを`OK / WARNING / BLOCKER`で報告します。`gh`と`jq`が必要です。レビュー中にPRのmerge、push、comment、editは行いません。mergeは別途、ユーザーが明示的に指示した場合だけ実行します。
@@ -160,7 +160,7 @@ Hookは停止理由と次の選択肢を表示します。
 Claude Codeで手動レビューし、`OK`を記録する場合:
 
 ```text
-#$subagent-review SESSION_BRIEF.md と git diff --cached を根拠にレビューし、コードは変更しない。
+::subagent-review SESSION_BRIEF.md と git diff --cached を根拠にレビューし、コードは変更しない。
 ```
 
 ```bash
@@ -238,7 +238,7 @@ git config --local --get-all agentskills.protectedPushBranch
 
 ## Claude Code
 
-`CLAUDE.md`から`AGENTS.md`を正として読みます。通常の収束作業は共通promptを使います。Codexが利用不能な場合は、表示された`#$subagent-review`をClaude Codeの現在セッションで実行できます。
+`CLAUDE.md`から`AGENTS.md`を正として読みます。通常の収束作業は共通promptを使います。Codexが利用不能な場合は、表示された`::subagent-review`をClaude Codeの現在セッションで実行できます。
 
 ## Codex
 

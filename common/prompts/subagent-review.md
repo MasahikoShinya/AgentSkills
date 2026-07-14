@@ -3,7 +3,7 @@
 After reading this file, report:
 
 ```text
-[AgentSkills][PROMPT][START] #$subagent-review
+[AgentSkills][PROMPT][START] ::subagent-review
 Source: .agentskills/prompts/subagent-review.md
 ```
 

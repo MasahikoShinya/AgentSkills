@@ -3,7 +3,7 @@
 After reading this file, report:
 
 ```text
-[AgentSkills][PROMPT][START] #$diff-review
+[AgentSkills][PROMPT][START] ::diff-review
 Source: .agentskills/prompts/diff-review.md
 ```
 

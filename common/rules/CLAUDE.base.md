@@ -10,8 +10,8 @@ In Convergence mode:
 
 For an independent review, read `.agentskills/prompts/subagent-review.md`. Do not use the parent agent's conversation history, reasoning, implementation intent, or previous attempts as evidence. Base the review on `AGENTS.md`, `SESSION_BRIEF.md`, `git status`, `git diff`, `git diff --cached`, and required current file contents only.
 
-For `#$pr-review`, read `.agentskills/prompts/pr-review.md` and run the matching `inspect-pull-request.sh` script. Use GitHub PR metadata, checks, and base/head diff as evidence. Do not merge or otherwise change the PR unless the user separately asks.
+For `::pr-review`, read `.agentskills/prompts/pr-review.md` and run the matching `inspect-pull-request.sh` script. Use GitHub PR metadata, checks, and base/head diff as evidence. Do not merge or otherwise change the PR unless the user separately asks.
 
-For `#$help`, read `.agentskills/prompts/workflow-help.md` and display its compact help without running hooks, reviewers, or setup scripts.
+For `::help`, read `.agentskills/prompts/workflow-help.md` and display its compact help without running hooks, reviewers, or setup scripts.
 
 The reviewer must not edit code, tests, staging, or `SESSION_BRIEF.md`. Return `OK`, `WARNING`, or `BLOCKER` with concrete findings.

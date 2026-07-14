@@ -3,7 +3,7 @@
 After reading this file, report:
 
 ```text
-[AgentSkills][PROMPT][START] #$pr-review
+[AgentSkills][PROMPT][START] ::pr-review
 Source: .agentskills/prompts/pr-review.md
 ```
 
@@ -33,6 +33,6 @@ Output:
 3. One overall result: `OK`, `WARNING`, or `BLOCKER`.
 4. A merge recommendation. `OK` may recommend merge only when the PR is open, not draft, mergeable, and its required checks are passing or none are configured. `WARNING` or `BLOCKER` must recommend against merge.
 
-Never run `gh pr merge`, `gh pr edit`, `gh pr comment`, `git push`, or any write operation as part of `#$pr-review`. A merge requires a separate explicit user instruction.
+Never run `gh pr merge`, `gh pr edit`, `gh pr comment`, `git push`, or any write operation as part of `::pr-review`. A merge requires a separate explicit user instruction.
 
 After the result, report `PROMPT END` with `Execution: completed` and the same overall result. If PR metadata, checks, or the diff cannot be collected, report `PROMPT BLOCKER` with the failed prerequisite instead of `PROMPT END`.

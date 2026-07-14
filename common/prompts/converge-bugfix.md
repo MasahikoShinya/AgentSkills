@@ -3,7 +3,7 @@
 After reading this file, report:
 
 ```text
-[AgentSkills][PROMPT][START] #$converge-bugfix
+[AgentSkills][PROMPT][START] ::converge-bugfix
 Source: .agentskills/prompts/converge-bugfix.md
 ```
 
@@ -25,7 +25,7 @@ Do not change files. Read `AGENTS.md` and `SESSION_BRIEF.md`, inspect the curren
 Stop and wait for user permission. Before waiting, report:
 
 ```text
-[AgentSkills][PROMPT][END] #$converge-bugfix
+[AgentSkills][PROMPT][END] ::converge-bugfix
 Completed: Phase 1 Spec
 Next action: Await user permission for Phase 2 Test.
 ```

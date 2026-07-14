@@ -135,7 +135,7 @@ fi
 agents_body='## AgentSkills Common Rules
 
 Before starting AgentSkills workflow work, read and follow `.agentskills/rules/AGENTS.base.md`.
-Use `#$help` to display the available pseudo-commands and execution evidence.'
+Use `::help` to display the available pseudo-commands and execution evidence.'
 ensure_loader "$TARGET_ROOT/AGENTS.md" "Common Rules" "$agents_body"
 
 if ((include_claude == 1)); then
@@ -172,4 +172,4 @@ else
 fi
 
 echo "[AgentSkills][DEPLOY][PASS] workflow-kit"
-echo 'Next: Open the target repository in Codex or Claude Code, then send #$help.'
+echo 'Next: Open the target repository in Codex or Claude Code, then send ::help.'

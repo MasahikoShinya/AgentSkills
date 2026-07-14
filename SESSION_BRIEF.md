@@ -8,30 +8,29 @@ Convergence
 
 ## Purpose
 
-Repair the PR #3 BLOCKER caused by literal `#$` pseudo-command text being expanded as an unset Bash variable.
+Replace the pseudo-command prefix from `#$` to `::` across the AgentSkills common kit.
 
 ## Confirmed Specification
 
-- The manual-review fallback must print `#$subagent-review` literally when Codex is unavailable.
-- The PR-review prerequisite failure must print `#$pr-review` literally when `gh` is unavailable.
-- Both failure paths must retain their documented exit status and actionable message under `set -u`.
+- All supported pseudo-commands use the ASCII `::` prefix: `::converge-bugfix`, `::diff-review`, `::subagent-review`, `::pr-review`, `::failure-analysis`, `::gate`, and `::help`.
+- Rules, prompts, user-facing shell output, README, design documents, and regression tests use the same command spelling.
+- Bash parameter expansions such as `${file#$TARGET_ROOT}` and PR number output such as `#$number` are not pseudo-commands and must remain unchanged.
 
 ## Current Problem
 
-Double-quoted `#$subagent-review` and `#$pr-review` expand `$subagent` and `$pr` as unset variables, interrupting the intended failure message.
+The `#$` prefix is visually shell-like and is less ergonomic than `::` for a chat-only pseudo-command. A single `@` cannot be used because it triggers client-side mention suggestions.
 
 ## Targets
 
-- `common/gates/check-llm-review.sh`
-- `common/reviewers/inspect-pull-request.sh`
-- `common/tests/run-tests.sh`
+- Pseudo-command references under `common/`
+- `AgentWorkflowKitDesignV01.md`
 - `SESSION_BRIEF.md`
 
 ## Non-Targets
 
 - `common/setup/deploy.sh` copy-mode behavior
 - Untracked `.claude/` local files
-- Unrelated PR #3 files and documentation
+- Functional changes unrelated to pseudo-command spelling
 
 ## Prohibitions
 
@@ -41,8 +40,8 @@ Double-quoted `#$subagent-review` and `#$pr-review` expand `$subagent` and `$pr`
 
 ## Verification
 
-- `bash -n common/gates/check-llm-review.sh common/reviewers/inspect-pull-request.sh common/tests/run-tests.sh`
-- Run `common/reviewers/inspect-pull-request.sh` without `gh` and confirm exit status `3` with literal `#$pr-review` output.
+- Confirm no pseudo-command reference retains the `#$` prefix.
+- Confirm Bash parameter expansions and PR number output are unchanged.
 - `bash common/tests/run-tests.sh`
 - `git diff --check`
 - Diff review confirms only the target files changed.
