@@ -103,7 +103,7 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 
 擬似コマンドはslash commandや実行ファイルではありません。自動ロードされた`AGENTS.md`が対応する`prompts/*.md`またはgateへ配送します。
 
-`::help`は、疑似コマンド、`git commit`／`git push`でHookが行う検査、直接実行できる主要scriptをコンパクトに表示します。表示のみで、Hookやreviewerは実行しません。prompt経由の疑似コマンドはチャットの`[AgentSkills][PROMPT][START]`と`[AgentSkills][PROMPT][END]`、`::gate`・Hook・scriptは端末のstatus行を実行証跡とします。完了表示がなければ、実行は確認できません。
+`::help`は、疑似コマンド、`git commit`／`git push`でHookが行う検査、直接実行できる主要scriptをコンパクトに表示します。表示のみで、Hookやreviewerは実行しません。疑似コマンドが実際に認識・配送された場合だけ、回答の最終行に`[AgentSkills][EXECUTED] ::<command>`を表示します。この行は起動確認専用であり、review・test・gate・hookの成功を意味しません。それらは既存のcomponent statusで判断します。`EXECUTED`がなければ疑似コマンドの実行は未確認であり、失敗とは断定しません。`::gate`・Hook・scriptは端末のstatus行を実行証跡とします。
 
 commitは最終`GATE`または`HOOK`が`PASS`の場合だけ続行します。`BLOCKER`または`FAIL`はそのcommitを停止します。`WARNING`だけでは可否は決まらないため、最終statusを確認します。
 

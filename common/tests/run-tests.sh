@@ -437,6 +437,22 @@ test_deploy() {
   fi
 }
 
+test_pseudo_command_execution_marker() {
+  local rules help help_output help_last_line
+  rules="$(cat "$SOURCE_COMMON/rules/AGENTS.base.md")"
+  help="$(cat "$SOURCE_COMMON/prompts/workflow-help.md")"
+  help_output="$(awk '
+    /^```text$/ { inside = 1; next }
+    inside && /^```$/ { exit }
+    inside { print }
+  ' "$SOURCE_COMMON/prompts/workflow-help.md")"
+  help_last_line="$(printf '%s\n' "$help_output" | awk 'NF { last = $0 } END { print last }')"
+  assert_contains "$rules" '[AgentSkills][EXECUTED] ::<command>' "rules define the pseudo-command execution marker"
+  assert_contains "$rules" 'Its absence means execution was not confirmed' "rules do not treat a missing marker as failure"
+  assert_contains "$help" '[AgentSkills][EXECUTED] ::help' "help defines its pseudo-command execution marker"
+  [[ "$help_last_line" == '[AgentSkills][EXECUTED] ::help' ]] && pass "help display ends with its pseudo-command execution marker" || fail "help display ends with its pseudo-command execution marker"
+}
+
 printf 'TAP version 13\n'
 test_status_consistency
 test_evidence_required
@@ -451,6 +467,7 @@ test_pull_request_inspection_without_gh
 test_pre_push_policy
 test_setup_conflict_and_force
 test_deploy
+test_pseudo_command_execution_marker
 
 if ((FAIL_COUNT > 0)); then
   printf '# %d test assertions failed\n' "$FAIL_COUNT" >&2

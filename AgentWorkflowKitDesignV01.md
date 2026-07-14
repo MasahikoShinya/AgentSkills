@@ -310,14 +310,14 @@ Gitの仕組みで制御する層。
 [AgentSkills][PROMPT][START] ::diff-review
 参照: common/prompts/diff-review.md
 [AgentSkills][REVIEW][WARNING] Test files were modified.
-[AgentSkills][PROMPT][END] ::diff-review
-実行: 完了
 Result: WARNING
+[AgentSkills][PROMPT][END] ::diff-review
+[AgentSkills][EXECUTED] ::diff-review
 ```
 
-prompt経由の疑似コマンドはpromptを実際に読んだ後だけ`PROMPT START`とsourceを表示し、手順を完了した後だけ`PROMPT END`を表示する。必要な証拠を取得できない場合は`PROMPT BLOCKER`または`PROMPT SKIP`を表示し、`END`は表示しない。`PROMPT END`はprompt手順の完了を示すものであり、review、gate、testの成否はそれぞれのcomponent statusで判断する。`::gate`のようにshell scriptへ直接配送する疑似コマンドは、script自身の`START`と最終statusを実行証跡とする。
+prompt経由の疑似コマンドはpromptを実際に読んだ後だけ`PROMPT START`とsourceを表示し、手順を完了した後だけ`PROMPT END`を表示する。必要な証拠を取得できない場合は`PROMPT BLOCKER`または`PROMPT SKIP`を表示し、`END`は表示しない。疑似コマンドを実際に認識して対応するpromptまたはscriptへ配送した場合だけ、利用者向け応答の最終行に`[AgentSkills][EXECUTED] ::<command>`を表示する。これは疑似コマンドの起動確認だけを示し、review、gate、testの成否はそれぞれのcomponent statusで判断する。`EXECUTED`がなければ実行は未確認であり、失敗とは断定しない。`::gate`のようにshell scriptへ直接配送する疑似コマンドは、script自身の`START`と最終statusを実行証跡とする。
 
-Git Hookとshell scriptは端末に出力する`HOOK`、`GATE`、`CHECK`、`LLM-REVIEW`、`PR-REVIEW`、`SETUP`のstatus行を実行証跡とする。利用者は`::help`で証跡の読み方を確認できる。完了statusがない処理は、実行済みとは扱わない。
+疑似コマンドは最終行の`EXECUTED`、Git Hookとshell scriptは端末に出力する`HOOK`、`GATE`、`CHECK`、`LLM-REVIEW`、`PR-REVIEW`、`SETUP`のstatus行を実行証跡とする。利用者は`::help`で証跡の読み方を確認できる。対応する証跡がない処理は、実行済みとは扱わない。
 
 commitは最終`GATE`または`HOOK`が`PASS`の場合だけ続行する。`BLOCKER`または`FAIL`はそのcommit試行を停止する。個別checkの`WARNING`だけでは可否を決めず、最終statusを確認する。
 

@@ -8,29 +8,29 @@ Convergence
 
 ## Purpose
 
-Replace the pseudo-command prefix from `#$` to `::` across the AgentSkills common kit.
+Add a clear final-line execution marker for every AgentSkills pseudo-command.
 
 ## Confirmed Specification
 
-- All supported pseudo-commands use the ASCII `::` prefix: `::converge-bugfix`, `::diff-review`, `::subagent-review`, `::pr-review`, `::failure-analysis`, `::gate`, and `::help`.
-- Rules, prompts, user-facing shell output, README, design documents, and regression tests use the same command spelling.
-- Bash parameter expansions such as `${file#$TARGET_ROOT}` and PR number output such as `#$number` are not pseudo-commands and must remain unchanged.
+- When an agent actually recognizes and dispatches a pseudo-command, the final user-facing line is `[AgentSkills][EXECUTED] ::<command>`.
+- The displayed `::help` block ends with `[AgentSkills][EXECUTED] ::help` as its final non-empty line.
+- The marker confirms pseudo-command execution only. It does not imply that a review, test, gate, or hook passed; those outcomes remain in the component status output.
+- If the marker is absent, execution is unconfirmed. It does not imply a detected failure.
 
 ## Current Problem
 
-The `#$` prefix is visually shell-like and is less ergonomic than `::` for a chat-only pseudo-command. A single `@` cannot be used because it triggers client-side mention suggestions.
+Pseudo-commands are interpreted by the agent and cannot be made to trigger with a 100 percent platform-level guarantee. Users need one compact, unambiguous confirmation when an instruction was actually handled.
 
 ## Targets
 
-- Pseudo-command references under `common/`
-- `AgentWorkflowKitDesignV01.md`
-- `SESSION_BRIEF.md`
+- Common rules and workflow-help prompt
+- Common README and synchronized design documents
+- Regression tests and this brief
 
 ## Non-Targets
 
-- `common/setup/deploy.sh` copy-mode behavior
 - Untracked `.claude/` local files
-- Functional changes unrelated to pseudo-command spelling
+- Pseudo-command spelling and unrelated functional behavior
 
 ## Prohibitions
 
@@ -40,8 +40,7 @@ The `#$` prefix is visually shell-like and is less ergonomic than `::` for a cha
 
 ## Verification
 
-- Confirm no pseudo-command reference retains the `#$` prefix.
-- Confirm Bash parameter expansions and PR number output are unchanged.
+- Confirm the execution marker contract is documented in the rules, help, README, and design documents.
 - `bash common/tests/run-tests.sh`
 - `git diff --check`
 - Diff review confirms only the target files changed.

@@ -15,6 +15,14 @@ Never claim that a rule, prompt, skill, brief, reviewer, or script was used unle
 
 For every prompt-backed pseudo-command, emit `PROMPT START` and its source path only after reading the prompt. Emit `PROMPT END` only after completing the requested prompt procedure, with its outcome or next action. If the procedure cannot be completed, emit `PROMPT BLOCKER` or `PROMPT SKIP` with the reason instead. `PROMPT END` proves only that the agent completed the prompt procedure; review, gate, and test outcomes must be reported by their own component status. For a pseudo-command that dispatches directly to a shell script, use that script's `START` and final status as its execution evidence.
 
+After a pseudo-command was actually recognized and dispatched to its required prompt or script, append this exact final line to the user-facing response:
+
+```text
+[AgentSkills][EXECUTED] ::<command>
+```
+
+This line confirms pseudo-command execution only. It does not mean that a review, test, gate, or hook passed; use those components' own final status for that result. Do not emit this line when the pseudo-command was not recognized or its required prompt or script was not used. Its absence means execution was not confirmed, not that a failure was detected.
+
 For a commit gate or hook, commit only after its final status is `PASS`. `BLOCKER` and `FAIL` stop that commit attempt. A `WARNING` alone does not determine commit eligibility; inspect the final `GATE` or `HOOK` status.
 
 ## Work Mode Selector

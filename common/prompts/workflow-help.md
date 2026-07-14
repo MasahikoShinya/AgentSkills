@@ -29,10 +29,10 @@ Git 操作によるトリガー（Hook 導入後）
   bash .agentskills/tests/run-tests.sh                       kit の回帰テストを実行
 
 注意: Hook は任意導入です。疑似コマンドはエージェントへの指示であり、shell command ではありません。
-実行証跡: prompt 経由 = チャットの PROMPT START + END。::gate、Hook、script = 端末の status 行。
+実行証跡: 疑似コマンドは最終行の [AgentSkills][EXECUTED] ::<command>。::gate、Hook、script = 端末の status 行。
 commit 可否: 最終 GATE / HOOK が PASS なら続行可。BLOCKER / FAIL なら commit は停止。WARNING は最終 status を確認する。
-完了表示がなければ、実行は確認できません。
+EXECUTED がなければ疑似コマンドの実行は未確認です。失敗とは断定しません。
 [AgentSkills][HELP][PASS]
 [AgentSkills][PROMPT][END] ::help
-実行: 完了
+[AgentSkills][EXECUTED] ::help
 ```
