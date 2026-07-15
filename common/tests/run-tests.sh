@@ -561,18 +561,27 @@ test_pseudo_command_execution_marker() {
 }
 
 test_workflow_command_routes() {
-  local rules sdd_prompt route command prompt expected
+  local rules sdd_prompt route command prompt expected command_syntax
   rules="$(cat "$SOURCE_COMMON/rules/AGENTS.base.md")"
   for route in 'resolve:resolve.md' 'sdd_tdd:sdd_tdd.md' 'ui-mock:ui-mock.md' 'test-plan:test-plan.md'; do
     command="${route%%:*}"
     prompt="${route#*:}"
     [[ -f "$SOURCE_COMMON/prompts/$prompt" ]] && pass "$command prompt file exists" || fail "$command prompt file exists"
-    expected="| \`::$command\` | \`.agentskills/prompts/$prompt\`"
+    command_syntax="::$command"
+    [[ "$command" == "sdd_tdd" ]] && command_syntax="::$command [--auto]"
+    expected="| \`$command_syntax\` | \`.agentskills/prompts/$prompt\`"
     assert_contains "$rules" "$expected" "rules route $command to its prompt"
   done
   sdd_prompt="$(cat "$SOURCE_COMMON/prompts/sdd_tdd.md")"
   assert_contains "$sdd_prompt" 'required SDD specification artifact' "SDD and TDD command records its specification artifact"
   assert_contains "$sdd_prompt" 'Do not implement without the required SDD specification artifact and test evidence.' "SDD and TDD command requires test evidence before implementation"
+  assert_contains "$sdd_prompt" '`::sdd_tdd --auto <request>`' "SDD and TDD command defines continuous mode"
+  assert_contains "$sdd_prompt" 'It never commits, pushes, merges' "continuous mode does not publish changes"
+  assert_contains "$sdd_prompt" 'read `failure-analysis.md` and report the analysis only' "continuous mode analyzes failures without consecutive fixes"
+  assert_contains "$sdd_prompt" 'An individual gate check may emit `WARNING` for information' "continuous mode distinguishes check warnings from final gate status"
+  assert_contains "$sdd_prompt" 'final `GATE` or `HOOK` status is `BLOCKER` or `FAIL`' "continuous mode stops on failing final gate or hook status"
+  assert_not_contains "$sdd_prompt" 'a test, review, gate, or hook reports `WARNING`, `BLOCKER`, or `FAIL`' "continuous mode does not stop on every informational warning"
+  assert_contains "$rules" '`::sdd_tdd [--auto]`' "rules expose the optional continuous mode"
   assert_contains "$rules" 'installed `test-orchestrator` skill' "test-plan requires the installed test-orchestrator skill"
   if [[ "$rules" == *'converge-bugfix'* ]]; then
     fail "rules no longer expose the previous convergence command"
