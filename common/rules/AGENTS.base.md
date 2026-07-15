@@ -49,15 +49,16 @@ For `::resolve`, select `Convergence`, read `.agentskills/prompts/resolve.md`, a
 
 For `::resolve` and `::sdd_tdd`, check `agentskills.reviewPolicy` before the gate. Under the default `auto` policy, record an `OK` staged self-review as `codex-self-review` for the current diff and label it `SELF-REVIEW`; it is not an independent review. Under `independent`, do not record a self-review for gate approval; use an external reviewer runtime.
 
-For `::sdd_tdd`, select `Convergence` and follow this strict sequence:
+For `::sdd_tdd`, select `Convergence` and follow this strict sequence. `::sdd_tdd --auto <request>` selects continuous mode only when the request has a confirmed, bounded expected behavior and scope; otherwise report `PROMPT BLOCKER` without editing.
 
 1. Read the project-root `SESSION_BRIEF.md` if it exists.
 2. Read `.agentskills/prompts/sdd_tdd.md` (or `common/prompts/sdd_tdd.md` inside the AgentSkills repository).
 3. Display the selected mode, trigger, evidence, files read, and current phase.
-4. Run Phase 1: Spec only. Do not edit application code or tests until the user adopts the specification.
+4. In assisted mode, run Phase 1: Spec only and do not edit application code or tests until the user adopts the specification. In `--auto` mode, write the confirmed specification to `SESSION_BRIEF.md` and continue only when the request is unambiguous.
 5. Write the adopted specification to `SESSION_BRIEF.md` before Phase 2.
 6. Obtain failing-test or reproduction evidence before Phase 3.
 7. Keep the mode fixed in `SESSION_BRIEF.md`; do not switch modes silently.
+8. In `--auto` mode, stop before further edits if scope separation, test selection, review, gate, hook, security, or irreversible-operation evidence requires a judgment. Run `failure-analysis.md` after a failure, but do not make a consecutive correction in that run.
 
 ## Phase Definitions
 
@@ -108,7 +109,7 @@ On test, review, gate, or hook failure, do not make consecutive fixes. Read `.ag
 | Command | Required input |
 |---|---|
 | `::resolve` | `.agentskills/prompts/resolve.md` |
-| `::sdd_tdd` | `.agentskills/prompts/sdd_tdd.md` |
+| `::sdd_tdd [--auto]` | `.agentskills/prompts/sdd_tdd.md` |
 | `::ui-mock` | `.agentskills/prompts/ui-mock.md` |
 | `::test-plan` | `.agentskills/prompts/test-plan.md` and the installed `test-orchestrator` skill |
 | `::diff-review` | `.agentskills/prompts/diff-review.md` |

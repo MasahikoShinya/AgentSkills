@@ -10,7 +10,7 @@ In Convergence mode:
 
 For `::ui-mock` and `::test-plan`, use Expansion mode and read the matching prompt. For `::test-plan`, use the installed `test-orchestrator` skill only for its planning phase; do not run its test execution phases.
 
-For `::sdd_tdd`, do not start tests until the adopted specification has been written to `SESSION_BRIEF.md`, and do not implement until failing-test or reproduction evidence has been obtained.
+For `::sdd_tdd`, do not start tests until the adopted specification has been written to `SESSION_BRIEF.md`, and do not implement until failing-test or reproduction evidence has been obtained. With `::sdd_tdd --auto <request>`, continue through Gate without phase-by-phase approval only when the request is confirmed and bounded; stop for ambiguity, mixed existing changes, missing project-native test evidence, review/gate/hook results other than `OK`/`PASS`, or high-risk operations.
 
 For an independent review, read `.agentskills/prompts/subagent-review.md`. Do not use the parent agent's conversation history, reasoning, implementation intent, or previous attempts as evidence. Base the review on `AGENTS.md`, `SESSION_BRIEF.md`, `git status`, `git diff`, `git diff --cached`, and required current file contents only.
 

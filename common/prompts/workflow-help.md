@@ -10,7 +10,7 @@ Display the following compact help exactly enough to identify each entry point. 
 [AgentSkills][HELP][START]
 疑似コマンド
   ::resolve       レビュー指摘・不具合を最小修正。仕様書は強制しない
-  ::sdd_tdd       SESSION_BRIEF仕様 -> 失敗テスト -> 実装 -> レビュー -> ゲート
+  ::sdd_tdd [--auto] SESSION_BRIEF仕様 -> 失敗テスト -> 実装 -> レビュー -> ゲート
   ::ui-mock       静的HTMLのUIモックを docs/ui-mocks/ に作成
   ::test-plan     test-orchestratorの計画フェーズで docs/test-plans/ を作成
   ::diff-review           作業ツリーと staged 差分をレビュー。変更しない
@@ -36,6 +36,7 @@ Git 操作によるトリガー（Hook 導入後）
 commit 可否: 最終 GATE / HOOK が PASS なら続行可。BLOCKER / FAIL なら commit は停止。WARNING は最終 status を確認する。
 review policy: auto は収束フローの SELF-REVIEW を使う。independent は外部reviewerを必須にする。
 Codexセッション内でSELF-REVIEWがなければ、子Codexを起動せず即時BLOCKERになる。
+--auto: ::sdd_tddだけの連続モード。仕様・対象が明確ならGateまで進める。曖昧さ、既存差分混在、test/review/gate/hookの問題、高リスク操作では停止し、commitはしない。
 EXECUTED がなければ疑似コマンドの実行は未確認です。失敗とは断定しません。
 [AgentSkills][HELP][PASS]
 [AgentSkills][PROMPT][END] ::help

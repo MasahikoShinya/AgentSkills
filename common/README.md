@@ -94,6 +94,7 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 ```text
 ::resolve
 ::sdd_tdd
+::sdd_tdd --auto <確定した依頼>
 ::ui-mock
 ::test-plan
 ::diff-review
@@ -107,6 +108,8 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 擬似コマンドはslash commandや実行ファイルではありません。自動ロードされた`AGENTS.md`が対応する`prompts/*.md`またはgateへ配送します。
 
 `::resolve`はレビュー指摘・不具合・確定した限定修正を扱います。新しい仕様書やタスクは作りません。`::sdd_tdd`は厳格な収束フローであり、Phase 1で採用仕様を`SESSION_BRIEF.md`へ保存してから、失敗テスト、実装、review、gateへ進みます。
+
+`::sdd_tdd --auto <依頼>`は、期待動作・対象・非対象が明確な場合にSpecからGateまでを連続して実行します。commit、push、mergeはしません。仕様の曖昧さ、既存差分の混在、利用可能なtest手段の不明、`WARNING` / `BLOCKER` / `FAIL`、security・外部公開・不可逆操作では停止し、失敗時は原因分析だけを行います。
 
 `::ui-mock`は`docs/ui-mocks/<slug>.html`に静的HTMLのUI仕様モックを作ります。`::test-plan`は利用可能な`test-orchestrator`スキルの計画フェーズだけを使い、`docs/test-plans/<slug>.md`に受け入れ条件とテスト計画を作ります。両方ともExpansion用の下書きであり、採用後に`::sdd_tdd`へ渡します。
 
