@@ -561,17 +561,23 @@ test_pseudo_command_execution_marker() {
 }
 
 test_workflow_command_routes() {
-  local rules sdd_prompt route command prompt expected command_syntax
+  local rules resolve_prompt sdd_prompt route command prompt expected command_syntax
   rules="$(cat "$SOURCE_COMMON/rules/AGENTS.base.md")"
   for route in 'resolve:resolve.md' 'sdd_tdd:sdd_tdd.md' 'ui-mock:ui-mock.md' 'test-plan:test-plan.md'; do
     command="${route%%:*}"
     prompt="${route#*:}"
     [[ -f "$SOURCE_COMMON/prompts/$prompt" ]] && pass "$command prompt file exists" || fail "$command prompt file exists"
     command_syntax="::$command"
-    [[ "$command" == "sdd_tdd" ]] && command_syntax="::$command [--auto]"
+    [[ "$command" == "resolve" || "$command" == "sdd_tdd" ]] && command_syntax="::$command [--auto]"
     expected="| \`$command_syntax\` | \`.agentskills/prompts/$prompt\`"
     assert_contains "$rules" "$expected" "rules route $command to its prompt"
   done
+  resolve_prompt="$(cat "$SOURCE_COMMON/prompts/resolve.md")"
+  assert_contains "$resolve_prompt" '`::resolve --auto <request>`' "resolve command defines continuous mode"
+  assert_contains "$resolve_prompt" 'It does not create or update `SESSION_BRIEF.md` solely for this command' "resolve continuous mode preserves session brief ownership"
+  assert_contains "$resolve_prompt" 'it never commits, pushes, or merges' "resolve continuous mode does not publish changes"
+  assert_contains "$resolve_prompt" 'An individual gate check may emit `WARNING` for information' "resolve continuous mode distinguishes check warnings from final gate status"
+  assert_contains "$rules" '`::resolve [--auto]`' "rules expose the optional resolve continuous mode"
   sdd_prompt="$(cat "$SOURCE_COMMON/prompts/sdd_tdd.md")"
   assert_contains "$sdd_prompt" 'required SDD specification artifact' "SDD and TDD command records its specification artifact"
   assert_contains "$sdd_prompt" 'Do not implement without the required SDD specification artifact and test evidence.' "SDD and TDD command requires test evidence before implementation"

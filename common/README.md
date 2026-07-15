@@ -93,6 +93,7 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 
 ```text
 ::resolve
+::resolve --auto <確定した依頼>
 ::sdd_tdd
 ::sdd_tdd --auto <確定した依頼>
 ::ui-mock
@@ -107,7 +108,7 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 
 擬似コマンドはslash commandや実行ファイルではありません。自動ロードされた`AGENTS.md`が対応する`prompts/*.md`またはgateへ配送します。
 
-`::resolve`はレビュー指摘・不具合・確定した限定修正を扱います。新しい仕様書やタスクは作りません。`::sdd_tdd`は厳格な収束フローであり、Phase 1で採用仕様を`SESSION_BRIEF.md`へ保存してから、失敗テスト、実装、review、gateへ進みます。
+`::resolve`はレビュー指摘・不具合・確定した限定修正を扱います。新しい仕様書やタスクは作りません。`::resolve --auto <依頼>`は、期待動作・対象・非対象が明確な限定修正を、検証、review、明示的な対象pathのstage、gateまで連続実行します。`SESSION_BRIEF.md`を新規作成・更新せず、commit、push、mergeもしません。仕様の曖昧さ、既存差分の混在、検証不足、最終reviewの`WARNING` / `BLOCKER`、最終GATE/HOOKの`BLOCKER` / `FAIL`、security・外部公開・不可逆操作では停止します。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら表示のみです。`::sdd_tdd`は厳格な収束フローであり、Phase 1で採用仕様を`SESSION_BRIEF.md`へ保存してから、失敗テスト、実装、review、gateへ進みます。
 
 `::sdd_tdd --auto <依頼>`は、期待動作・対象・非対象が明確な場合にSpecからGateまでを連続して実行します。commit、push、mergeはしません。仕様の曖昧さ、既存差分の混在、test証跡の不足、最終reviewの`WARNING` / `BLOCKER`、最終GATE/HOOKの`BLOCKER` / `FAIL`、security・外部公開・不可逆操作では停止し、失敗時は原因分析だけを行います。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら表示のみで連続実行を止めません。
 
