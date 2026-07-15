@@ -578,6 +578,9 @@ test_workflow_command_routes() {
   assert_contains "$sdd_prompt" '`::sdd_tdd --auto <request>`' "SDD and TDD command defines continuous mode"
   assert_contains "$sdd_prompt" 'It never commits, pushes, merges' "continuous mode does not publish changes"
   assert_contains "$sdd_prompt" 'read `failure-analysis.md` and report the analysis only' "continuous mode analyzes failures without consecutive fixes"
+  assert_contains "$sdd_prompt" 'An individual gate check may emit `WARNING` for information' "continuous mode distinguishes check warnings from final gate status"
+  assert_contains "$sdd_prompt" 'final `GATE` or `HOOK` status is `BLOCKER` or `FAIL`' "continuous mode stops on failing final gate or hook status"
+  assert_not_contains "$sdd_prompt" 'a test, review, gate, or hook reports `WARNING`, `BLOCKER`, or `FAIL`' "continuous mode does not stop on every informational warning"
   assert_contains "$rules" '`::sdd_tdd [--auto]`' "rules expose the optional continuous mode"
   assert_contains "$rules" 'installed `test-orchestrator` skill' "test-plan requires the installed test-orchestrator skill"
   if [[ "$rules" == *'converge-bugfix'* ]]; then

@@ -58,7 +58,7 @@ For `::sdd_tdd`, select `Convergence` and follow this strict sequence. `::sdd_td
 5. Write the adopted specification to `SESSION_BRIEF.md` before Phase 2.
 6. Obtain failing-test or reproduction evidence before Phase 3.
 7. Keep the mode fixed in `SESSION_BRIEF.md`; do not switch modes silently.
-8. In `--auto` mode, stop before further edits if scope separation, test selection, review, gate, hook, security, or irreversible-operation evidence requires a judgment. Run `failure-analysis.md` after a failure, but do not make a consecutive correction in that run.
+8. In `--auto` mode, stop before further edits if scope separation, test selection, final review `WARNING` / `BLOCKER`, final `GATE` / `HOOK` `BLOCKER` / `FAIL`, security, or irreversible-operation evidence requires a judgment. Individual gate-check `WARNING` output is informational when the final `GATE` or `HOOK` status is `PASS`. Run `failure-analysis.md` after a failure, but do not make a consecutive correction in that run.
 
 ## Phase Definitions
 

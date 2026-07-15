@@ -20,10 +20,12 @@ In continuous mode, stop with `PROMPT BLOCKER` instead of continuing when any of
 - expected behavior, scope, or non-targets are ambiguous;
 - existing staged or unstaged changes cannot be separated from this task;
 - no project-native test or reproducible check can be identified;
-- a test, review, gate, or hook reports `WARNING`, `BLOCKER`, or `FAIL`;
+- the relevant test does not provide the required failing or passing evidence;
+- the final diff review reports `WARNING` or `BLOCKER`;
+- the final `GATE` or `HOOK` status is `BLOCKER` or `FAIL`;
 - the change requires a destructive, externally visible, security-sensitive, or otherwise irreversible operation.
 
-After a test, review, gate, or hook failure, read `failure-analysis.md` and report the analysis only. Do not apply another correction in the same continuous run.
+An individual gate check may emit `WARNING` for information. Report it, but continue when the final `GATE` or `HOOK` status is `PASS`. After a test, review, gate, or hook failure, read `failure-analysis.md` and report the analysis only. Do not apply another correction in the same continuous run.
 
 ## Phase 1: Spec
 
@@ -54,7 +56,7 @@ Reproduce with an existing test or add the smallest failing test. Do not edit pr
 
 ## Phase 3: Implement
 
-In assisted mode, make the smallest production change after permission. In continuous mode, make it immediately after the required test evidence. Re-run the relevant test and report its passing evidence. Do not change test expectations, touch out-of-scope files, or perform unrelated refactoring.
+In assisted mode, make the smallest production change after permission. In continuous mode, make it immediately after the required test evidence. Re-run the relevant test and report its passing evidence. If it does not pass, stop and read `failure-analysis.md`. Do not change test expectations, touch out-of-scope files, or perform unrelated refactoring.
 
 ## Phase 4: Review
 

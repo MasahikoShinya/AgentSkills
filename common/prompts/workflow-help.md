@@ -36,7 +36,7 @@ Git 操作によるトリガー（Hook 導入後）
 commit 可否: 最終 GATE / HOOK が PASS なら続行可。BLOCKER / FAIL なら commit は停止。WARNING は最終 status を確認する。
 review policy: auto は収束フローの SELF-REVIEW を使う。independent は外部reviewerを必須にする。
 Codexセッション内でSELF-REVIEWがなければ、子Codexを起動せず即時BLOCKERになる。
---auto: ::sdd_tddだけの連続モード。仕様・対象が明確ならGateまで進める。曖昧さ、既存差分混在、test/review/gate/hookの問題、高リスク操作では停止し、commitはしない。
+--auto: ::sdd_tddだけの連続モード。仕様・対象が明確ならGateまで進める。曖昧さ、既存差分混在、test証跡不足、最終review WARNING/BLOCKER、最終GATE/HOOK BLOCKER/FAIL、高リスク操作では停止する。個別checkのWARNINGは最終GATE/HOOKがPASSなら表示のみ。commitはしない。
 EXECUTED がなければ疑似コマンドの実行は未確認です。失敗とは断定しません。
 [AgentSkills][HELP][PASS]
 [AgentSkills][PROMPT][END] ::help
