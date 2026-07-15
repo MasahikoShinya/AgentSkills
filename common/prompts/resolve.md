@@ -9,10 +9,28 @@ Source: .agentskills/prompts/resolve.md
 
 Use this prompt for a bounded review finding, regression, or confirmed defect. Do not create a task, a new design document, or a new `SESSION_BRIEF.md` solely because this command was used. If an existing brief applies, use it as the current specification.
 
-Before editing, report the requested outcome, evidence, target files, non-target files, verification, and whether the request is sufficiently bounded. If the required behavior is unclear, report `PROMPT BLOCKER` and ask for clarification.
+## Invocation Modes
 
-When the user has authorized the correction, make the smallest coherent change. Use existing relevant tests when available; do not weaken test expectations for convenience. Do not perform unrelated refactoring.
+`::resolve <request>` is the assisted mode. Before editing, report the requested outcome, evidence, target files, non-target files, verification, and whether the request is sufficiently bounded. If the required behavior is unclear, report `PROMPT BLOCKER` and ask for clarification.
+
+`::resolve --auto <request>` is the continuous mode. The command authorizes a bounded correction and continues through Gate without phase-by-phase permission. It does not create or update `SESSION_BRIEF.md` solely for this command, and it never commits, pushes, or merges.
+
+In continuous mode, stop with `PROMPT BLOCKER` instead of continuing when any of the following applies:
+
+- expected behavior, scope, or non-targets are ambiguous;
+- existing staged or unstaged changes cannot be separated from this task;
+- no relevant test or project-native verification can be identified;
+- the relevant verification does not pass;
+- the final diff review reports `WARNING` or `BLOCKER`;
+- the final `GATE` or `HOOK` status is `BLOCKER` or `FAIL`;
+- the correction requires a destructive, externally visible, security-sensitive, or otherwise irreversible operation.
+
+An individual gate check may emit `WARNING` for information. Report it, but continue when the final `GATE` or `HOOK` status is `PASS`. After a test, review, gate, or hook failure, read `failure-analysis.md` and report the analysis only. Do not apply another correction in the same continuous run.
+
+In assisted mode, make the smallest coherent change after the user has authorized the correction. In continuous mode, make it immediately after confirming the request is bounded. Use existing relevant tests when available, or the smallest project-native verification for the target. Do not weaken test expectations for convenience. Do not perform unrelated refactoring.
 
 Before any user-requested commit, run `diff-review.md`, stage explicit paths, and perform a scope-isolated self-review of `AGENTS.md`, `SESSION_BRIEF.md`, `git status`, and `git diff --cached` without relying on the implementation conversation. Under the default `agentskills.reviewPolicy=auto`, if the overall result is `OK`, record it with `bash .agentskills/reviewers/record-manual-review.sh --runtime codex-self-review --status OK`, then run the gate. Report this as `SELF-REVIEW`, not an independent review. Under `independent`, use an external reviewer runtime instead; do not record a self-review for gate approval. Do not commit unless the final gate status is `PASS`.
 
-After completing the requested resolution, report `PROMPT END` with the verification performed and any remaining limitation. If evidence or permission is unavailable, report `PROMPT BLOCKER` instead of `PROMPT END`.
+In continuous mode, after relevant verification passes, run `diff-review.md`, stage only explicit task paths after `OK`, and do not alter paths that were staged before the workflow began. Perform the same scope-isolated staged self-review and gate sequence. A passing gate ends the workflow; leave the verified task paths staged and do not commit unless the user separately requests it.
+
+After completing the requested resolution, report `PROMPT END` with the verification performed and any remaining limitation. In continuous mode, report one `PROMPT END` after Gate with the verification, review, and gate results. If evidence or permission is unavailable, report `PROMPT BLOCKER` instead of `PROMPT END`.
