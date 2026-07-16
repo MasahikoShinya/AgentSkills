@@ -30,6 +30,22 @@ valid_phase() {
   esac
 }
 
+expected_next_phase() {
+  case "$1:$2" in
+    sdd_tdd:spec) printf 'test\n' ;;
+    sdd_tdd:test) printf 'implement\n' ;;
+    sdd_tdd:implement) printf 'review\n' ;;
+    sdd_tdd:review) printf 'gate\n' ;;
+    sdd_tdd:gate) printf 'complete\n' ;;
+    resolve:inspect) printf 'implement\n' ;;
+    resolve:implement) printf 'verify\n' ;;
+    resolve:verify) printf 'review\n' ;;
+    resolve:review) printf 'gate\n' ;;
+    resolve:gate) printf 'complete\n' ;;
+    *) return 1 ;;
+  esac
+}
+
 if [[ "$action" == "start" ]]; then
   expected_phase="inspect"
   [[ "$workflow" == "sdd_tdd" ]] && expected_phase="spec"
@@ -83,6 +99,16 @@ validate_state_workflow() {
   fi
 }
 
+validate_resumable_phase() {
+  local recorded_phase
+  recorded_phase="$(state_value next_phase)"
+  if ! valid_phase "$workflow" "$recorded_phase"; then
+    echo "[AgentSkills][WORKFLOW-STATE][BLOCKER] Workflow state has an invalid next phase: ${recorded_phase:-<missing>}" >&2
+    exit 1
+  fi
+  printf '%s\n' "$recorded_phase"
+}
+
 write_state() {
   local next_phase="$1"
   local initial_file="$2"
@@ -103,6 +129,15 @@ write_state() {
 case "$action" in
   start)
     mkdir -p "$STATE_DIR"
+    if [[ -f "$STATE_FILE" ]]; then
+      validate_state_workflow
+      recorded_phase="$(validate_resumable_phase)"
+      if [[ "$recorded_phase" != "complete" ]]; then
+        echo "[AgentSkills][WORKFLOW-STATE][BLOCKER] Unfinished $workflow workflow state already exists" >&2
+        echo "Resume with ::$workflow --auto --resume instead of starting over." >&2
+        exit 1
+      fi
+    fi
     git diff --cached --name-only --no-ext-diff >"$INITIAL_STAGED_FILE"
     write_state "$phase" "$INITIAL_STAGED_FILE"
     echo "[AgentSkills][WORKFLOW-STATE][PASS] started $workflow"
@@ -117,6 +152,16 @@ case "$action" in
       exit 1
     fi
     validate_state_workflow
+    recorded_phase="$(validate_resumable_phase)"
+    expected_phase="$(expected_next_phase "$workflow" "$recorded_phase" || true)"
+    if [[ -z "$expected_phase" ]]; then
+      echo "[AgentSkills][WORKFLOW-STATE][BLOCKER] $workflow is already complete; start a new workflow instead of advancing it" >&2
+      exit 1
+    fi
+    if [[ "$phase" != "$expected_phase" ]]; then
+      echo "[AgentSkills][WORKFLOW-STATE][BLOCKER] $workflow must advance from $recorded_phase to $expected_phase, not $phase" >&2
+      exit 1
+    fi
     write_state "$phase" "$(state_value initial_staged_file)"
     echo "[AgentSkills][WORKFLOW-STATE][PASS] advanced $workflow"
     echo "Next phase: $phase"
@@ -129,6 +174,7 @@ case "$action" in
       exit 1
     fi
     validate_state_workflow
+    validate_resumable_phase >/dev/null
     stored_brief_hash="$(state_value brief_hash)"
     current_brief_hash="$(hash_file "$REPO_ROOT/SESSION_BRIEF.md")"
     if [[ "$stored_brief_hash" != "$current_brief_hash" ]]; then

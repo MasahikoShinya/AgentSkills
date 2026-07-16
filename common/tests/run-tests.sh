@@ -569,6 +569,19 @@ test_workflow_resume_state() {
   output="$(cd "$repo" && bash common/workflows/workflow-state.sh start sdd_tdd spec 2>&1)"
   assert_contains "$output" "started sdd_tdd" "SDD workflow state starts"
   assert_contains "$output" "Next phase: spec" "SDD workflow state records the first phase"
+  set +e
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh start sdd_tdd spec 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "1" ]] && pass "unfinished SDD workflow state blocks replacement" || fail "unfinished SDD workflow state blocks replacement"
+  assert_contains "$output" "Unfinished sdd_tdd workflow state already exists" "unfinished SDD workflow state blocker is visible"
+  assert_contains "$output" "--auto --resume" "unfinished SDD workflow state recommends resume"
+  set +e
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh advance sdd_tdd gate 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "1" ]] && pass "SDD workflow state blocks skipped phases" || fail "SDD workflow state blocks skipped phases"
+  assert_contains "$output" "must advance from spec to test" "SDD skipped phase blocker identifies required transition"
   output="$(cd "$repo" && bash common/workflows/workflow-state.sh advance sdd_tdd test 2>&1)"
   assert_contains "$output" "Next phase: test" "SDD workflow state advances"
   output="$(cd "$repo" && bash common/workflows/workflow-state.sh show sdd_tdd 2>&1)"
@@ -587,6 +600,12 @@ test_workflow_resume_state() {
   repo="$(new_repo)"
   output="$(cd "$repo" && bash common/workflows/workflow-state.sh start resolve inspect 2>&1)"
   assert_contains "$output" "started resolve" "resolve workflow state starts"
+  set +e
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh advance resolve review 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "1" ]] && pass "resolve workflow state blocks skipped phases" || fail "resolve workflow state blocks skipped phases"
+  assert_contains "$output" "must advance from inspect to implement" "resolve skipped phase blocker identifies required transition"
   output="$(cd "$repo" && bash common/workflows/workflow-state.sh advance resolve implement 2>&1)"
   assert_contains "$output" "Next phase: implement" "resolve workflow state advances"
   output="$(cd "$repo" && bash common/workflows/workflow-state.sh show resolve 2>&1)"
