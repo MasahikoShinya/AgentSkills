@@ -134,7 +134,7 @@ case "$action" in
       recorded_phase="$(validate_resumable_phase)"
       if [[ "$recorded_phase" != "complete" ]]; then
         echo "[AgentSkills][WORKFLOW-STATE][BLOCKER] Unfinished $workflow workflow state already exists" >&2
-        echo "Resume with ::$workflow --auto --resume instead of starting over." >&2
+        echo "Run ::$workflow <request> to continue from its recorded next phase." >&2
         exit 1
       fi
     fi
@@ -170,11 +170,16 @@ case "$action" in
   show)
     if [[ ! -f "$STATE_FILE" ]]; then
       echo "[AgentSkills][WORKFLOW-STATE][BLOCKER] No resumable $workflow workflow state" >&2
-      echo "Use ::$workflow --auto <request> to start a new workflow." >&2
+      echo "Use ::$workflow <request> to start a new workflow." >&2
       exit 1
     fi
     validate_state_workflow
-    validate_resumable_phase >/dev/null
+    recorded_phase="$(validate_resumable_phase)"
+    if [[ "$recorded_phase" == "complete" ]]; then
+      echo "[AgentSkills][WORKFLOW-STATE][BLOCKER] $workflow is already complete" >&2
+      echo "Start a new workflow with ::$workflow <request>." >&2
+      exit 1
+    fi
     stored_brief_hash="$(state_value brief_hash)"
     current_brief_hash="$(hash_file "$REPO_ROOT/SESSION_BRIEF.md")"
     if [[ "$stored_brief_hash" != "$current_brief_hash" ]]; then

@@ -94,11 +94,9 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 
 ```text
 ::resolve
-::resolve --auto <確定した依頼>
-::resolve --auto --resume
+::resolve --step <確定した依頼>
 ::sdd_tdd
-::sdd_tdd --auto <確定した依頼>
-::sdd_tdd --auto --resume
+::sdd_tdd --step <確定した依頼>
 ::ui-mock
 ::test-plan
 ::diff-review
@@ -111,11 +109,11 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 
 擬似コマンドはslash commandや実行ファイルではありません。自動ロードされた`AGENTS.md`が対応する`prompts/*.md`またはgateへ配送します。
 
-`::resolve`はレビュー指摘・不具合・確定した限定修正を扱います。新しい仕様書やタスクは作りません。`::resolve --auto <依頼>`は、期待動作・対象・非対象が明確な限定修正を、検証、review、明示的な対象pathのstage、gateまで連続実行します。`SESSION_BRIEF.md`を新規作成・更新せず、commit、push、mergeもしません。仕様の曖昧さ、既存差分の混在、検証不足、最終reviewの`WARNING` / `BLOCKER`、最終GATE/HOOKの`BLOCKER` / `FAIL`、security・外部公開・不可逆操作では停止します。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら表示のみです。`::sdd_tdd`は厳格な収束フローであり、Phase 1で採用仕様を`SESSION_BRIEF.md`へ保存してから、失敗テスト、実装、review、gateへ進みます。
+`::resolve`はレビュー指摘・不具合・確定した限定修正を扱い、期待動作・対象・非対象が明確なら、検証、review、明示的な対象pathのstage、gateまで連続実行します。新しい仕様書やタスクは作らず、`SESSION_BRIEF.md`も新規作成・更新しません。commit、push、mergeもしません。仕様の曖昧さ、既存差分の混在、検証不足、最終reviewの`WARNING` / `BLOCKER`、最終GATE/HOOKの`BLOCKER` / `FAIL`、security・外部公開・不可逆操作では停止します。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら表示のみです。`::sdd_tdd`は厳格な収束フローであり、Phase 1で採用仕様を`SESSION_BRIEF.md`へ保存してから、失敗テスト、実装、review、gateへ進みます。
 
-`::sdd_tdd --auto <依頼>`は、期待動作・対象・非対象が明確な場合にSpecからGateまでを連続して実行します。commit、push、mergeはしません。仕様の曖昧さ、既存差分の混在、test証跡の不足、最終reviewの`WARNING` / `BLOCKER`、最終GATE/HOOKの`BLOCKER` / `FAIL`、security・外部公開・不可逆操作では停止し、失敗時は原因分析だけを行います。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら表示のみで連続実行を止めません。
+`::sdd_tdd`は、期待動作・対象・非対象が明確な場合にSpecからGateまでを連続して実行します。commit、push、mergeはしません。仕様の曖昧さ、既存差分の混在、test証跡の不足、最終reviewの`WARNING` / `BLOCKER`、最終GATE/HOOKの`BLOCKER` / `FAIL`、security・外部公開・不可逆操作では停止し、失敗時は原因分析だけを行います。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら表示のみで連続実行を止めません。
 
-`::resolve --auto --resume` と `::sdd_tdd --auto --resume` は、`--auto`を付けずに開始したworkflowを、記録済みの次Phaseから連続実行へ切り替えます。stateは `.git/agentskills/workflows/` に保存され、開始時のstaged filesと`SESSION_BRIEF.md`のhashを確認します。stateがない、またはbriefが変更されている場合は停止します。
+`::resolve --step` と `::sdd_tdd --step` は現在の1 Phaseだけを実行して停止します。通常コマンドは、整合する未完了 state があれば記録済みの次Phaseから自動再開します。stateは `.git/agentskills/workflows/` に保存され、開始時のstaged filesと`SESSION_BRIEF.md`のhashを確認します。stateがない、または前回 state が完了済みなら新規開始し、briefが変更されている場合は停止します。
 
 `::ui-mock`は`docs/ui-mocks/<slug>.html`に静的HTMLのUI仕様モックを作ります。`::test-plan`は利用可能な`test-orchestrator`スキルの計画フェーズだけを使い、`docs/test-plans/<slug>.md`に受け入れ条件とテスト計画を作ります。両方ともExpansion用の下書きであり、採用後に`::sdd_tdd`へ渡します。
 
