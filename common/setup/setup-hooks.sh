@@ -90,6 +90,7 @@ chmod +x "$KIT_ROOT_PHYSICAL"/reviewers/*.sh
 chmod +x "$KIT_ROOT_PHYSICAL"/setup/*.sh
 chmod +x "$KIT_ROOT_PHYSICAL"/lib/*.sh
 chmod +x "$KIT_ROOT_PHYSICAL"/tests/*.sh
+chmod +x "$KIT_ROOT_PHYSICAL"/workflows/*.sh
 
 git config --local core.hooksPath "$hooks_path"
 git config --local agentskills.kitPath "${hooks_path%/hooks}"

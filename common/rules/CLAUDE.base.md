@@ -14,6 +14,8 @@ For `::sdd_tdd`, do not start tests until the adopted specification has been wri
 
 For `::resolve --auto <request>`, use the command as authorization for a confirmed, bounded correction. Do not create or update `SESSION_BRIEF.md` solely for this command. Continue through relevant verification, diff review, explicit task-path staging, staged self-review, and Gate; do not commit, push, or merge. Stop for ambiguity, mixed existing changes, missing verification, a final review `WARNING` / `BLOCKER`, a final `GATE` / `HOOK` `BLOCKER` / `FAIL`, or high-risk operations. An individual gate-check `WARNING` is informational when the final status is `PASS`.
 
+For `::resolve --auto --resume` or `::sdd_tdd --auto --resume`, first run the matching `.agentskills/workflows/workflow-state.sh show` command. Resume only at its `Next phase`; do not infer a phase from the parent conversation or restart an already-recorded phase. If state validation reports `BLOCKER`, do not edit.
+
 For an independent review, read `.agentskills/prompts/subagent-review.md`. Do not use the parent agent's conversation history, reasoning, implementation intent, or previous attempts as evidence. Base the review on `AGENTS.md`, `SESSION_BRIEF.md`, `git status`, `git diff`, `git diff --cached`, and required current file contents only.
 
 For `::pr-review`, read `.agentskills/prompts/pr-review.md` and run the matching `inspect-pull-request.sh` script. Use GitHub PR metadata, checks, and base/head diff as evidence. Do not merge or otherwise change the PR unless the user separately asks.
