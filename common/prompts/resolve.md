@@ -15,7 +15,7 @@ Use this prompt for a bounded review finding, regression, or confirmed defect. D
 
 `::resolve --step <request>` is the step mode. Complete only the recorded current Phase, then report `PROMPT END` and wait for the next user instruction. It preserves the approval stops described below.
 
-Before any work, run `bash .agentskills/workflows/workflow-state.sh show resolve "<exact request>"` (or the equivalent `common/` path). If it reports an unfinished state, resume only at its recorded `Next phase`; do not infer a phase from conversation history or restart an already-recorded phase. The request must match the original request text. If it reports no state or an already-complete state, start a new workflow with `bash .agentskills/workflows/workflow-state.sh start resolve inspect "<request>"`. Any other `BLOCKER` stops the command without editing.
+Before any work, run `bash .agentskills/workflows/workflow-state.sh show resolve "<exact request>"` (or the equivalent `common/` path). If it reports an unfinished state, resume only at its recorded `Next phase`; do not infer a phase from conversation history or restart an already-recorded phase. The request must match the original request text. If it reports no state or an already-complete state, start a new workflow with `bash .agentskills/workflows/workflow-state.sh start resolve inspect "<request>"`. A legacy-state `BLOCKER` has no request identity and must be reviewed before the explicitly shown `discard-legacy` command is run. Any other `BLOCKER` stops the command without editing.
 
 Execute only the phase reported as `Next phase`:
 

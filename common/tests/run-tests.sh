@@ -561,7 +561,7 @@ test_pseudo_command_execution_marker() {
 }
 
 test_workflow_resume_state() {
-  local repo output rc
+  local repo output rc state_file
 
   repo="$(new_repo)"
   printf 'pre-existing staged change\n' >>"$repo/app.txt"
@@ -632,6 +632,29 @@ test_workflow_resume_state() {
   assert_contains "$output" "resolve is already complete" "completed resolve workflow state explains new start"
   output="$(cd "$repo" && bash common/workflows/workflow-state.sh start resolve inspect "New resolve workflow request" 2>&1)"
   assert_contains "$output" "started resolve" "completed resolve workflow state permits a new start"
+
+  repo="$(new_repo)"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh start resolve inspect "Legacy resolve workflow request" 2>&1)"
+  assert_contains "$output" "started resolve" "legacy test workflow state starts"
+  set +e
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh discard-legacy resolve 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "1" ]] && pass "identified resolve workflow state cannot be discarded as legacy" || fail "identified resolve workflow state cannot be discarded as legacy"
+  assert_contains "$output" "has a request identity" "identified resolve workflow state explains discard refusal"
+  state_file="$repo/.git/agentskills/workflows/resolve.state"
+  grep -v '^request_hash=' "$state_file" >"$state_file.legacy"
+  mv "$state_file.legacy" "$state_file"
+  set +e
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh show resolve "Legacy resolve workflow request" 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "1" ]] && pass "legacy resolve workflow state blocks resume" || fail "legacy resolve workflow state blocks resume"
+  assert_contains "$output" "discard-legacy resolve" "legacy resolve workflow state provides discard command"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh discard-legacy resolve 2>&1)"
+  assert_contains "$output" "discarded legacy resolve workflow state" "legacy resolve workflow state can be explicitly discarded"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh start resolve inspect "Replacement resolve workflow request" 2>&1)"
+  assert_contains "$output" "started resolve" "discarded legacy resolve workflow state permits a new start"
 }
 
 test_workflow_command_routes() {

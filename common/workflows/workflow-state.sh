@@ -5,9 +5,10 @@ usage() {
   echo "Usage: $0 start <resolve|sdd_tdd> <initial-phase> <request>" >&2
   echo "       $0 advance <resolve|sdd_tdd> <next-phase>" >&2
   echo "       $0 show <resolve|sdd_tdd> <request>" >&2
+  echo "       $0 discard-legacy <resolve|sdd_tdd>" >&2
 }
 
-action="$1"
+action="${1:-}"
 workflow="${2:-}"
 phase="${3:-}"
 request="${4:-}"
@@ -23,6 +24,9 @@ case "$action" in
     [[ $# == 3 ]] || { usage; exit 2; }
     request="$phase"
     phase=""
+    ;;
+  discard-legacy)
+    [[ $# == 2 ]] || { usage; exit 2; }
     ;;
   *)
     usage
@@ -74,7 +78,7 @@ elif [[ "$action" == "advance" ]]; then
     echo "[AgentSkills][WORKFLOW-STATE][FAIL] Invalid next phase for $workflow: ${phase:-<missing>}" >&2
     exit 2
   fi
-elif [[ "$action" != "show" ]] || [[ -n "$phase" ]]; then
+elif { [[ "$action" != "show" ]] && [[ "$action" != "discard-legacy" ]]; } || [[ -n "$phase" ]]; then
   usage
   exit 2
 fi
@@ -151,6 +155,13 @@ validate_request_match() {
   fi
 }
 
+legacy_state_resolution() {
+  echo "[AgentSkills][WORKFLOW-STATE][BLOCKER] Legacy $workflow workflow state has no request identity" >&2
+  echo "Resolution: Review the active work, then explicitly discard the legacy state with:" >&2
+  echo "  $0 discard-legacy $workflow" >&2
+  exit 1
+}
+
 write_state() {
   local next_phase="$1"
   local initial_file="$2"
@@ -224,6 +235,9 @@ case "$action" in
       echo "Start a new workflow with ::$workflow <request>." >&2
       exit 1
     fi
+    if [[ -z "$(state_value request_hash)" ]]; then
+      legacy_state_resolution
+    fi
     validate_request_match
     stored_brief_hash="$(state_value brief_hash)"
     current_brief_hash="$(hash_file "$REPO_ROOT/SESSION_BRIEF.md")"
@@ -244,5 +258,19 @@ case "$action" in
     else
       echo "  <none>"
     fi
+    ;;
+  discard-legacy)
+    if [[ ! -f "$STATE_FILE" ]]; then
+      echo "[AgentSkills][WORKFLOW-STATE][BLOCKER] No legacy $workflow workflow state to discard" >&2
+      exit 1
+    fi
+    validate_state_workflow
+    if [[ -n "$(state_value request_hash)" ]]; then
+      echo "[AgentSkills][WORKFLOW-STATE][BLOCKER] $workflow state has a request identity and cannot be discarded as legacy" >&2
+      echo "Resolution: Resume it with the original request text." >&2
+      exit 1
+    fi
+    rm -f "$STATE_FILE" "$INITIAL_STAGED_FILE"
+    echo "[AgentSkills][WORKFLOW-STATE][PASS] discarded legacy $workflow workflow state"
     ;;
 esac

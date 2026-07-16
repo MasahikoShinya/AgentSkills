@@ -15,7 +15,7 @@ Use this prompt only for strict Convergence work. Follow SDD and TDD in this exa
 
 `::sdd_tdd --step <request>` is the step mode. Complete only the recorded current Phase, then report `PROMPT END` and wait for the next user instruction. It preserves the approval stops described below.
 
-Before any work, run `bash .agentskills/workflows/workflow-state.sh show sdd_tdd "<exact request>"` (or the equivalent `common/` path). If it reports an unfinished state, resume only at its recorded `Next phase`; do not infer a phase from conversation history or restart Spec. The request must match the original request text. If it reports no state or an already-complete state, start a new workflow with `bash .agentskills/workflows/workflow-state.sh start sdd_tdd spec "<request>"`. Any other `BLOCKER` stops the command without editing.
+Before any work, run `bash .agentskills/workflows/workflow-state.sh show sdd_tdd "<exact request>"` (or the equivalent `common/` path). If it reports an unfinished state, resume only at its recorded `Next phase`; do not infer a phase from conversation history or restart Spec. The request must match the original request text. If it reports no state or an already-complete state, start a new workflow with `bash .agentskills/workflows/workflow-state.sh start sdd_tdd spec "<request>"`. A legacy-state `BLOCKER` has no request identity and must be reviewed before the explicitly shown `discard-legacy` command is run. Any other `BLOCKER` stops the command without editing.
 
 Execute only the phase reported as `Next phase`. In step mode, stop immediately after completing and recording that phase. In default continuous mode, proceed through the next recorded phase in the mandatory order.
 

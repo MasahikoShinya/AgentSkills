@@ -113,7 +113,7 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 
 `::sdd_tdd`は、期待動作・対象・非対象が明確な場合にSpecからGateまでを連続して実行します。commit、push、mergeはしません。仕様の曖昧さ、既存差分の混在、test証跡の不足、最終reviewの`WARNING` / `BLOCKER`、最終GATE/HOOKの`BLOCKER` / `FAIL`、security・外部公開・不可逆操作では停止し、失敗時は原因分析だけを行います。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら表示のみで連続実行を止めません。
 
-`::resolve --step` と `::sdd_tdd --step` は現在の1 Phaseだけを実行して停止します。通常コマンドは、同じ依頼本文と整合する未完了 state があれば記録済みの次Phaseから自動再開します。stateは `.git/agentskills/workflows/` に保存され、依頼本文、開始時のstaged files、`SESSION_BRIEF.md`のhashを確認します。stateがない、または前回 state が完了済みなら新規開始し、異なる依頼またはbriefが変更されている場合は停止します。
+`::resolve --step` と `::sdd_tdd --step` は現在の1 Phaseだけを実行して停止します。通常コマンドは、同じ依頼本文と整合する未完了 state があれば記録済みの次Phaseから自動再開します。stateは `.git/agentskills/workflows/` に保存され、依頼本文、開始時のstaged files、`SESSION_BRIEF.md`のhashを確認します。stateがない、または前回 state が完了済みなら新規開始し、異なる依頼またはbriefが変更されている場合は停止します。旧kitが作成したrequest identityのない state は自動再開せず、表示される `discard-legacy` command で確認後にだけ破棄できます。
 
 `::ui-mock`は`docs/ui-mocks/<slug>.html`に静的HTMLのUI仕様モックを作ります。`::test-plan`は利用可能な`test-orchestrator`スキルの計画フェーズだけを使い、`docs/test-plans/<slug>.md`に受け入れ条件とテスト計画を作ります。両方ともExpansion用の下書きであり、採用後に`::sdd_tdd`へ渡します。
 
