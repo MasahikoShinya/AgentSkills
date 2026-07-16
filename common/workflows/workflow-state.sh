@@ -2,17 +2,33 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 <start|advance|show> <resolve|sdd_tdd> [next-phase]" >&2
+  echo "Usage: $0 start <resolve|sdd_tdd> <initial-phase> <request>" >&2
+  echo "       $0 advance <resolve|sdd_tdd> <next-phase>" >&2
+  echo "       $0 show <resolve|sdd_tdd> <request>" >&2
 }
 
-if (($# < 2 || $# > 3)); then
-  usage
-  exit 2
-fi
-
 action="$1"
-workflow="$2"
+workflow="${2:-}"
 phase="${3:-}"
+request="${4:-}"
+
+case "$action" in
+  start)
+    [[ $# == 4 ]] || { usage; exit 2; }
+    ;;
+  advance)
+    [[ $# == 3 ]] || { usage; exit 2; }
+    ;;
+  show)
+    [[ $# == 3 ]] || { usage; exit 2; }
+    request="$phase"
+    phase=""
+    ;;
+  *)
+    usage
+    exit 2
+    ;;
+esac
 
 case "$workflow" in
   resolve|sdd_tdd) ;;
@@ -87,6 +103,20 @@ hash_file() {
   fi
 }
 
+hash_text() {
+  local value="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    printf '%s' "$value" | sha256sum | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    printf '%s' "$value" | shasum -a 256 | awk '{print $1}'
+  elif command -v openssl >/dev/null 2>&1; then
+    printf '%s' "$value" | openssl dgst -sha256 | awk '{print $NF}'
+  else
+    echo "[AgentSkills][WORKFLOW-STATE][FAIL] sha256sum, shasum, or openssl is required" >&2
+    exit 2
+  fi
+}
+
 state_value() {
   local key="$1"
   awk -F= -v key="$key" '$1 == key { print substr($0, length(key) + 2); exit }' "$STATE_FILE"
@@ -109,9 +139,22 @@ validate_resumable_phase() {
   printf '%s\n' "$recorded_phase"
 }
 
+validate_request_match() {
+  local stored_request_hash current_request_hash
+  stored_request_hash="$(state_value request_hash)"
+  current_request_hash="$(hash_text "$request")"
+  if [[ -z "$stored_request_hash" || "$stored_request_hash" != "$current_request_hash" ]]; then
+    echo "[AgentSkills][WORKFLOW-STATE][BLOCKER] Workflow state does not match the requested work" >&2
+    echo "Reason: An unfinished workflow can resume only with its original request text." >&2
+    echo "Resolution: Continue the active request, or resolve its state before starting different work." >&2
+    exit 1
+  fi
+}
+
 write_state() {
   local next_phase="$1"
   local initial_file="$2"
+  local request_hash="$3"
   local temporary
   temporary="$STATE_FILE.tmp.$$"
   {
@@ -120,6 +163,7 @@ write_state() {
     printf 'next_phase=%s\n' "$next_phase"
     printf 'head=%s\n' "$(git rev-parse HEAD)"
     printf 'brief_hash=%s\n' "$(hash_file "$REPO_ROOT/SESSION_BRIEF.md")"
+    printf 'request_hash=%s\n' "$request_hash"
     printf 'initial_staged_file=%s\n' "$initial_file"
     printf 'recorded_at=%s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
   } >"$temporary"
@@ -139,7 +183,7 @@ case "$action" in
       fi
     fi
     git diff --cached --name-only --no-ext-diff >"$INITIAL_STAGED_FILE"
-    write_state "$phase" "$INITIAL_STAGED_FILE"
+    write_state "$phase" "$INITIAL_STAGED_FILE" "$(hash_text "$request")"
     echo "[AgentSkills][WORKFLOW-STATE][PASS] started $workflow"
     echo "Next phase: $phase"
     echo "State: $STATE_FILE"
@@ -162,7 +206,7 @@ case "$action" in
       echo "[AgentSkills][WORKFLOW-STATE][BLOCKER] $workflow must advance from $recorded_phase to $expected_phase, not $phase" >&2
       exit 1
     fi
-    write_state "$phase" "$(state_value initial_staged_file)"
+    write_state "$phase" "$(state_value initial_staged_file)" "$(state_value request_hash)"
     echo "[AgentSkills][WORKFLOW-STATE][PASS] advanced $workflow"
     echo "Next phase: $phase"
     echo "State: $STATE_FILE"
@@ -180,6 +224,7 @@ case "$action" in
       echo "Start a new workflow with ::$workflow <request>." >&2
       exit 1
     fi
+    validate_request_match
     stored_brief_hash="$(state_value brief_hash)"
     current_brief_hash="$(hash_file "$REPO_ROOT/SESSION_BRIEF.md")"
     if [[ "$stored_brief_hash" != "$current_brief_hash" ]]; then

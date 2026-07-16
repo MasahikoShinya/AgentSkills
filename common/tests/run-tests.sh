@@ -566,11 +566,11 @@ test_workflow_resume_state() {
   repo="$(new_repo)"
   printf 'pre-existing staged change\n' >>"$repo/app.txt"
   git -C "$repo" add app.txt
-  output="$(cd "$repo" && bash common/workflows/workflow-state.sh start sdd_tdd spec 2>&1)"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh start sdd_tdd spec "SDD workflow request" 2>&1)"
   assert_contains "$output" "started sdd_tdd" "SDD workflow state starts"
   assert_contains "$output" "Next phase: spec" "SDD workflow state records the first phase"
   set +e
-  output="$(cd "$repo" && bash common/workflows/workflow-state.sh start sdd_tdd spec 2>&1)"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh start sdd_tdd spec "SDD workflow request" 2>&1)"
   rc=$?
   set -e
   [[ "$rc" == "1" ]] && pass "unfinished SDD workflow state blocks replacement" || fail "unfinished SDD workflow state blocks replacement"
@@ -584,21 +584,21 @@ test_workflow_resume_state() {
   assert_contains "$output" "must advance from spec to test" "SDD skipped phase blocker identifies required transition"
   output="$(cd "$repo" && bash common/workflows/workflow-state.sh advance sdd_tdd test 2>&1)"
   assert_contains "$output" "Next phase: test" "SDD workflow state advances"
-  output="$(cd "$repo" && bash common/workflows/workflow-state.sh show sdd_tdd 2>&1)"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh show sdd_tdd "SDD workflow request" 2>&1)"
   assert_contains "$output" "resumable sdd_tdd workflow" "SDD workflow state is resumable"
   assert_contains "$output" "Next phase: test" "SDD resume uses the recorded next phase"
   assert_contains "$output" "app.txt" "SDD resume exposes initial staged paths"
 
   printf 'Changed brief after state capture.\n' >>"$repo/SESSION_BRIEF.md"
   set +e
-  output="$(cd "$repo" && bash common/workflows/workflow-state.sh show sdd_tdd 2>&1)"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh show sdd_tdd "SDD workflow request" 2>&1)"
   rc=$?
   set -e
   [[ "$rc" == "1" ]] && pass "brief changes block SDD workflow resume" || fail "brief changes block SDD workflow resume"
   assert_contains "$output" "SESSION_BRIEF.md changed" "brief change blocker is visible"
 
   repo="$(new_repo)"
-  output="$(cd "$repo" && bash common/workflows/workflow-state.sh start resolve inspect 2>&1)"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh start resolve inspect "Resolve workflow request" 2>&1)"
   assert_contains "$output" "started resolve" "resolve workflow state starts"
   set +e
   output="$(cd "$repo" && bash common/workflows/workflow-state.sh advance resolve review 2>&1)"
@@ -608,8 +608,14 @@ test_workflow_resume_state() {
   assert_contains "$output" "must advance from inspect to implement" "resolve skipped phase blocker identifies required transition"
   output="$(cd "$repo" && bash common/workflows/workflow-state.sh advance resolve implement 2>&1)"
   assert_contains "$output" "Next phase: implement" "resolve workflow state advances"
-  output="$(cd "$repo" && bash common/workflows/workflow-state.sh show resolve 2>&1)"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh show resolve "Resolve workflow request" 2>&1)"
   assert_contains "$output" "Next phase: implement" "resolve resume uses the recorded next phase"
+  set +e
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh show resolve "Different resolve request" 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "1" ]] && pass "different resolve request blocks automatic resume" || fail "different resolve request blocks automatic resume"
+  assert_contains "$output" "does not match the requested work" "different resolve request blocker is visible"
   output="$(cd "$repo" && bash common/workflows/workflow-state.sh advance resolve verify 2>&1)"
   assert_contains "$output" "Next phase: verify" "resolve workflow state advances to verify"
   output="$(cd "$repo" && bash common/workflows/workflow-state.sh advance resolve review 2>&1)"
@@ -619,12 +625,12 @@ test_workflow_resume_state() {
   output="$(cd "$repo" && bash common/workflows/workflow-state.sh advance resolve complete 2>&1)"
   assert_contains "$output" "Next phase: complete" "resolve workflow state advances to complete"
   set +e
-  output="$(cd "$repo" && bash common/workflows/workflow-state.sh show resolve 2>&1)"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh show resolve "Resolve workflow request" 2>&1)"
   rc=$?
   set -e
   [[ "$rc" == "1" ]] && pass "completed resolve workflow state is not resumable" || fail "completed resolve workflow state is not resumable"
   assert_contains "$output" "resolve is already complete" "completed resolve workflow state explains new start"
-  output="$(cd "$repo" && bash common/workflows/workflow-state.sh start resolve inspect 2>&1)"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh start resolve inspect "New resolve workflow request" 2>&1)"
   assert_contains "$output" "started resolve" "completed resolve workflow state permits a new start"
 }
 

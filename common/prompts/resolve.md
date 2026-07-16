@@ -15,7 +15,7 @@ Use this prompt for a bounded review finding, regression, or confirmed defect. D
 
 `::resolve --step <request>` is the step mode. Complete only the recorded current Phase, then report `PROMPT END` and wait for the next user instruction. It preserves the approval stops described below.
 
-Before any work, run `bash .agentskills/workflows/workflow-state.sh show resolve` (or the equivalent `common/` path). If it reports an unfinished state, resume only at its recorded `Next phase`; do not infer a phase from conversation history or restart an already-recorded phase. If it reports no state or an already-complete state, start a new workflow with `bash .agentskills/workflows/workflow-state.sh start resolve inspect`. Any other `BLOCKER` stops the command without editing. After the bounded outcome and verification method have been confirmed, run `bash .agentskills/workflows/workflow-state.sh advance resolve implement` before continuing or waiting for permission.
+Before any work, run `bash .agentskills/workflows/workflow-state.sh show resolve "<exact request>"` (or the equivalent `common/` path). If it reports an unfinished state, resume only at its recorded `Next phase`; do not infer a phase from conversation history or restart an already-recorded phase. The request must match the original request text. If it reports no state or an already-complete state, start a new workflow with `bash .agentskills/workflows/workflow-state.sh start resolve inspect "<request>"`. Any other `BLOCKER` stops the command without editing.
 
 Execute only the phase reported as `Next phase`:
 
@@ -40,8 +40,6 @@ In default continuous mode, stop with `PROMPT BLOCKER` instead of continuing whe
 An individual gate check may emit `WARNING` for information. Report it, but continue when the final `GATE` or `HOOK` status is `PASS`. After a test, review, gate, or hook failure, read `failure-analysis.md` and report the analysis only. Do not apply another correction in the same continuous run.
 
 In step mode, make the smallest coherent change after the user has authorized the correction. In default continuous mode, make it immediately after confirming the request is bounded. Use existing relevant tests when available, or the smallest project-native verification for the target. Do not weaken test expectations for convenience. Do not perform unrelated refactoring.
-
-After the correction is made, advance the workflow state to `verify`. After relevant verification passes, advance it to `review`.
 
 Before any user-requested commit, run `diff-review.md`, stage explicit paths, and perform a scope-isolated self-review of `AGENTS.md`, `SESSION_BRIEF.md`, `git status`, and `git diff --cached` without relying on the implementation conversation. Under the default `agentskills.reviewPolicy=auto`, if the overall result is `OK`, record it with `bash .agentskills/reviewers/record-manual-review.sh --runtime codex-self-review --status OK`, then run the gate. Report this as `SELF-REVIEW`, not an independent review. Under `independent`, use an external reviewer runtime instead; do not record a self-review for gate approval. Do not commit unless the final gate status is `PASS`.
 
