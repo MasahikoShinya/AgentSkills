@@ -45,13 +45,13 @@ For `Uncertain`, do not change code. State the ambiguity and ask the user to cho
 
 For `::ui-mock` and `::test-plan`, select `Expansion`. They produce only draft specification artifacts and must not modify application source, production tests, package configuration, or hooks.
 
-For `::resolve`, select `Convergence`, read `.agentskills/prompts/resolve.md`, and use an existing `SESSION_BRIEF.md` only when it applies. Do not create a task or new specification artifact solely because `::resolve` was used. `::resolve --auto <request>` selects continuous mode only when the request has a confirmed, bounded expected behavior and scope; otherwise report `PROMPT BLOCKER` without editing. It does not create or update `SESSION_BRIEF.md` solely for this command and does not commit, push, or merge.
+For `::resolve`, select `Convergence`, read `.agentskills/prompts/resolve.md`, and use an existing `SESSION_BRIEF.md` only when it applies. Do not create a task or new specification artifact solely because `::resolve` was used. `::resolve --auto <request>` selects continuous mode only when the request has a confirmed, bounded expected behavior and scope; otherwise report `PROMPT BLOCKER` without editing. It does not create or update `SESSION_BRIEF.md` solely for this command and does not commit, push, or merge. `::resolve --auto --resume` must run `.agentskills/workflows/workflow-state.sh show resolve` first and resumes only its recorded next phase.
 
 For `::resolve --auto`, inspect the requested outcome, evidence, target files, non-target files, current Git state, and project-native verification before editing. After verification passes, run diff review, stage only explicit task paths after `OK`, perform the staged self-review, and run the gate. Stop for mixed existing changes, missing verification, final review `WARNING` / `BLOCKER`, final `GATE` / `HOOK` `BLOCKER` / `FAIL`, security, or irreversible-operation evidence requiring judgment. Individual gate-check `WARNING` output is informational when the final `GATE` or `HOOK` status is `PASS`.
 
 For `::resolve` and `::sdd_tdd`, check `agentskills.reviewPolicy` before the gate. Under the default `auto` policy, record an `OK` staged self-review as `codex-self-review` for the current diff and label it `SELF-REVIEW`; it is not an independent review. Under `independent`, do not record a self-review for gate approval; use an external reviewer runtime.
 
-For `::sdd_tdd`, select `Convergence` and follow this strict sequence. `::sdd_tdd --auto <request>` selects continuous mode only when the request has a confirmed, bounded expected behavior and scope; otherwise report `PROMPT BLOCKER` without editing.
+For `::sdd_tdd`, select `Convergence` and follow this strict sequence. `::sdd_tdd --auto <request>` selects continuous mode only when the request has a confirmed, bounded expected behavior and scope; otherwise report `PROMPT BLOCKER` without editing. `::sdd_tdd --auto --resume` must run `.agentskills/workflows/workflow-state.sh show sdd_tdd` first and resumes only its recorded next phase.
 
 1. Read the project-root `SESSION_BRIEF.md` if it exists.
 2. Read `.agentskills/prompts/sdd_tdd.md` (or `common/prompts/sdd_tdd.md` inside the AgentSkills repository).
@@ -110,8 +110,8 @@ On test, review, gate, or hook failure, do not make consecutive fixes. Read `.ag
 
 | Command | Required input |
 |---|---|
-| `::resolve [--auto]` | `.agentskills/prompts/resolve.md` |
-| `::sdd_tdd [--auto]` | `.agentskills/prompts/sdd_tdd.md` |
+| `::resolve [--auto] [--resume]` | `.agentskills/prompts/resolve.md` |
+| `::sdd_tdd [--auto] [--resume]` | `.agentskills/prompts/sdd_tdd.md` |
 | `::ui-mock` | `.agentskills/prompts/ui-mock.md` |
 | `::test-plan` | `.agentskills/prompts/test-plan.md` and the installed `test-orchestrator` skill |
 | `::diff-review` | `.agentskills/prompts/diff-review.md` |
