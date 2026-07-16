@@ -513,6 +513,7 @@ test_deploy() {
   assert_contains "$(cat "$repo/AGENTS.md")" "AgentSkills Common Rules" "deploy adds AGENTS loader"
   assert_contains "$(cat "$repo/CLAUDE.md")" "AgentSkills Claude Rules" "deploy adds CLAUDE loader"
   [[ -f "$repo/SESSION_BRIEF.md" ]] && pass "deploy creates session brief" || fail "deploy creates session brief"
+  [[ -f "$repo/REVIEW_LESSONS.md" ]] && pass "deploy creates review lessons"
   [[ -f "$repo/AGENT_MODELS.md" ]] && pass "deploy creates model template on request" || fail "deploy creates model template on request"
   assert_contains "$output" "[AgentSkills][DEPLOY][PASS] workflow-kit" "deploy reports completion"
 
@@ -666,6 +667,21 @@ test_workflow_command_routes() {
   fi
 }
 
+test_review_lessons_contract() {
+  local template resolve_prompt sdd_prompt rules
+  template="$(cat "$SOURCE_COMMON/briefs/REVIEW_LESSONS.template.md")"
+  resolve_prompt="$(cat "$SOURCE_COMMON/prompts/resolve.md")"
+  sdd_prompt="$(cat "$SOURCE_COMMON/prompts/sdd_tdd.md")"
+  rules="$(cat "$SOURCE_COMMON/rules/AGENTS.base.md")"
+  assert_contains "$template" "Keep only reusable, confirmed prevention rules" "review lessons template excludes review history"
+  assert_contains "$template" "Applies when:" "review lessons template defines applicability"
+  assert_contains "$resolve_prompt" '[AgentSkills][PREVENTION]' "resolve reports prevention classification"
+  assert_contains "$resolve_prompt" "workflow-test" "resolve supports workflow prevention"
+  assert_contains "$resolve_prompt" "Do not create a lesson for ordinary implementation history" "resolve limits lesson growth"
+  assert_contains "$sdd_prompt" "REVIEW_LESSONS.md" "SDD and TDD reads relevant review lessons"
+  assert_contains "$rules" 'Read project-root `REVIEW_LESSONS.md` when present' "common rules require relevant review lessons"
+}
+
 printf 'TAP version 13\n'
 test_status_consistency
 test_evidence_required
@@ -684,6 +700,7 @@ test_deploy
 test_pseudo_command_execution_marker
 test_workflow_resume_state
 test_workflow_command_routes
+test_review_lessons_contract
 
 if ((FAIL_COUNT > 0)); then
   printf '# %d test assertions failed\n' "$FAIL_COUNT" >&2

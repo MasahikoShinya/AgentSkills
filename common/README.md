@@ -21,7 +21,7 @@ rules、prompts、brief、script、subagentはTriggerではなく、Triggerか�
 |---|---|
 | `rules/` | プロジェクトの`AGENTS.md`／`CLAUDE.md`へ統合する基本ルール |
 | `prompts/` | 収束、review、failure analysisの定型手順 |
-| `briefs/` | SESSION_BRIEFテンプレート |
+| `briefs/` | SESSION_BRIEFとREVIEW_LESSONSのテンプレート |
 | `config/` | 任意のモデル設定テンプレート |
 | `gates/` | 機密、サイズ、空白、diff、LLM reviewの検査 |
 | `lib/` | staged path解析、リスク判定、SHA-256、review cacheの共通処理 |
@@ -42,7 +42,7 @@ cd /path/to/AgentSkills
 bash common/setup/deploy.sh --claude --models /path/to/target-project
 ```
 
-この1回の実行で、`.agentskills`へのsymlink、`AGENTS.md`の管理ブロック、`CLAUDE.md`の管理ブロック、未作成の`SESSION_BRIEF.md`、未作成の`AGENT_MODELS.md`を用意します。Git Hookは任意導入のため、必要な場合だけ追加します。
+この1回の実行で、`.agentskills`へのsymlink、`AGENTS.md`の管理ブロック、`CLAUDE.md`の管理ブロック、未作成の`SESSION_BRIEF.md`、未作成の`REVIEW_LESSONS.md`、未作成の`AGENT_MODELS.md`を用意します。Git Hookは任意導入のため、必要な場合だけ追加します。
 
 ```bash
 bash common/setup/deploy.sh --claude --models --install-hooks /path/to/target-project
@@ -69,6 +69,7 @@ ln -s /path/to/AgentSkills/common .agentskills
 AGENTS.md
 CLAUDE.md
 SESSION_BRIEF.md
+REVIEW_LESSONS.md
 AGENT_MODELS.md
 ```
 
@@ -82,7 +83,13 @@ AGENT_MODELS.md
 cp .agentskills/briefs/SESSION_BRIEF.template.md SESSION_BRIEF.md
 ```
 
-4. 必要ならモデル設定を作成します。
+4. 再発防止ルールの索引を作成します。
+
+```bash
+cp .agentskills/briefs/REVIEW_LESSONS.template.md REVIEW_LESSONS.md
+```
+
+5. 必要ならモデル設定を作成します。
 
 ```bash
 cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
@@ -114,6 +121,8 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 `::sdd_tdd`は、期待動作・対象・非対象が明確な場合にSpecからGateまでを連続して実行します。commit、push、mergeはしません。仕様の曖昧さ、既存差分の混在、test証跡の不足、最終reviewの`WARNING` / `BLOCKER`、最終GATE/HOOKの`BLOCKER` / `FAIL`、security・外部公開・不可逆操作では停止し、失敗時は原因分析だけを行います。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら表示のみで連続実行を止めません。
 
 `::resolve --step` と `::sdd_tdd --step` は現在の1 Phaseだけを実行して停止します。通常コマンドは、整合する未完了 state があれば記録済みの次Phaseから自動再開します。stateは `.git/agentskills/workflows/` に保存され、開始時のstaged filesと`SESSION_BRIEF.md`のhashを確認します。stateがない、または前回 state が完了済みなら新規開始し、briefが変更されている場合は停止します。
+
+`::resolve`は、関連テスト後に再発防止を一度だけ分類し、`[AgentSkills][PREVENTION]`を表示します。`REVIEW_LESSONS.md`へ残すのは、テスト、ルール、workflow guardだけでは意図が分からない再利用可能な防止策に限ります。これはレビュー履歴ではありません。`::resolve`と`::sdd_tdd`は開始時に対象と関係する lessons だけを参照します。
 
 `::ui-mock`は`docs/ui-mocks/<slug>.html`に静的HTMLのUI仕様モックを作ります。`::test-plan`は利用可能な`test-orchestrator`スキルの計画フェーズだけを使い、`docs/test-plans/<slug>.md`に受け入れ条件とテスト計画を作ります。両方ともExpansion用の下書きであり、採用後に`::sdd_tdd`へ渡します。
 

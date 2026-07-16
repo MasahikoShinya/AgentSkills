@@ -168,6 +168,14 @@ else
   echo "Action: Fill only confirmed scope and verification before Convergence work."
 fi
 
+if [[ -e "$TARGET_ROOT/REVIEW_LESSONS.md" ]]; then
+  echo "[AgentSkills][DEPLOY][SKIP] REVIEW_LESSONS.md already exists"
+else
+  cp "$KIT_ROOT/briefs/REVIEW_LESSONS.template.md" "$TARGET_ROOT/REVIEW_LESSONS.md"
+  echo "[AgentSkills][DEPLOY][PASS] REVIEW_LESSONS.md created"
+  echo "Action: Keep only reusable prevention rules linked to tests, rules, or workflow guards."
+fi
+
 if ((create_models == 1)); then
   if [[ -e "$TARGET_ROOT/AGENT_MODELS.md" ]]; then
     echo "[AgentSkills][DEPLOY][SKIP] AGENT_MODELS.md already exists"

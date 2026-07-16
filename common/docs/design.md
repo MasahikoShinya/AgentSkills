@@ -466,12 +466,15 @@ Claude / Codex 共通で使うため、正式な slash command ではなく、�
 
 - 新規タスク、新規設計書、新規SESSION_BRIEFは作らない
 - 既存SESSION_BRIEFが対象なら根拠として使う
+- 対象と関係する`REVIEW_LESSONS.md`の項目だけを参照する
 - 対象・非対象・検証を確認してから最小修正する
 - commit前にdiff reviewとgateを必須にする
 
 `::resolve <依頼>`は、期待動作と対象範囲が明確な限定修正に限り、検証、diff review、明示的な対象pathのstage、staged self-review、Gateまでをphaseごとの確認なしで連続実行する。`SESSION_BRIEF.md`は新規作成・更新せず、commit、push、mergeも行わない。仕様の曖昧さ、既存差分の混在、必要な検証の不足、最終reviewの`WARNING` / `BLOCKER`、最終GATE/HOOKの`BLOCKER` / `FAIL`、security・外部公開・不可逆操作では停止する。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら情報として表示するだけで連続実行を止めない。失敗時は`failure-analysis.md`による分析までを自動化し、同じrunで連続修正しない。
 
 `::resolve --step <依頼>`は現在の1 Phaseだけを実行して停止する。通常の`::resolve <依頼>`はstate helperが`.git/agentskills/workflows/resolve.state`に記録した次Phase、開始時のstaged files、SESSION_BRIEF hashを確認し、整合する未完了 state があれば自動再開する。stateがない、または前回 state が完了済みなら新規開始する。
+
+関連verificationの成功後、`::resolve`は再発防止を`regression-test`、`brief`、`rule`、`workflow-test`、`none`のいずれかへ一度だけ分類して`[AgentSkills][PREVENTION]`を表示する。`REVIEW_LESSONS.md`へ残すのは、既存のtest、rule、workflow guardだけでは意図が分からない再利用可能な防止策だけであり、レビュー履歴や却下案は保存しない。各項目は適用範囲、防止策、検証方法、利用できる場合は指摘IDを持つ。
 
 例:
 
@@ -489,6 +492,7 @@ Claude / Codex 共通で使うため、正式な slash command ではなく、�
 動作:
 
 - Phase 1で採用仕様を確認し、承認後にSESSION_BRIEF.mdへ保存する
+- 対象と関係する`REVIEW_LESSONS.md`の項目だけを参照する
 - Phase 2で失敗テストまたは再現証拠を取得する
 - Phase 3は仕様成果物とtest evidenceがある場合だけ実装する
 - Phase 4-5でdiff reviewとgateを実行する

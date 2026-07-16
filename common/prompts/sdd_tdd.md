@@ -7,7 +7,7 @@ After reading this file, report:
 Source: .agentskills/prompts/sdd_tdd.md
 ```
 
-Use this prompt only for strict Convergence work. Follow SDD and TDD in this exact order. Do not skip a phase.
+Use this prompt only for strict Convergence work. Follow SDD and TDD in this exact order. Do not skip a phase. Read project-root `REVIEW_LESSONS.md` when present and apply only lessons relevant to the requested target.
 
 ## Invocation Modes
 
