@@ -9,8 +9,10 @@ Display the following compact help exactly enough to identify each entry point. 
 参照: .agentskills/prompts/workflow-help.md
 [AgentSkills][HELP][START]
 疑似コマンド
-  ::resolve [--auto] [--resume] レビュー指摘・不具合を最小修正。仕様書は強制しない
-  ::sdd_tdd [--auto] [--resume] SESSION_BRIEF仕様 -> 失敗テスト -> 実装 -> レビュー -> ゲート
+  ::resolve <依頼>              レビュー指摘・不具合を連続で最小修正。仕様書は強制しない
+  ::resolve --step <依頼>       resolveを1 Phaseだけ実行して停止
+  ::sdd_tdd <依頼>              SESSION_BRIEF仕様 -> 失敗テスト -> 実装 -> レビュー -> ゲート
+  ::sdd_tdd --step <依頼>       sdd_tddを1 Phaseだけ実行して停止
   ::ui-mock       静的HTMLのUIモックを docs/ui-mocks/ に作成
   ::test-plan     test-orchestratorの計画フェーズで docs/test-plans/ を作成
   ::diff-review           作業ツリーと staged 差分をレビュー。変更しない
@@ -36,9 +38,8 @@ Git 操作によるトリガー（Hook 導入後）
 commit 可否: 最終 GATE / HOOK が PASS なら続行可。BLOCKER / FAIL なら commit は停止。WARNING は最終 status を確認する。
 review policy: auto は収束フローの SELF-REVIEW を使う。independent は外部reviewerを必須にする。
 Codexセッション内でSELF-REVIEWがなければ、子Codexを起動せず即時BLOCKERになる。
---auto: ::sdd_tdd / ::resolve の連続モード。仕様・対象が明確ならGateまで進める。曖昧さ、既存差分混在、検証不足、最終review WARNING/BLOCKER、最終GATE/HOOK BLOCKER/FAIL、高リスク操作では停止する。個別checkのWARNINGは最終GATE/HOOKがPASSなら表示のみ。commitはしない。
-resolve --auto: 限定修正をGateまで連続実行。SESSION_BRIEFは新規作成・更新しない。検証不足、最終review WARNING/BLOCKER、最終GATE/HOOK BLOCKER/FAIL、高リスク操作では停止する。commitはしない。
---resume: 既存のworkflow stateを検証し、記録済みの次Phaseからauto modeで再開する。stateまたはSESSION_BRIEFの整合性がない場合は停止する。
+既定: ::sdd_tdd / ::resolve は連続モード。仕様・対象が明確ならGateまで進める。曖昧さ、既存差分混在、検証不足、最終review WARNING/BLOCKER、最終GATE/HOOK BLOCKER/FAIL、高リスク操作では停止する。個別checkのWARNINGは最終GATE/HOOKがPASSなら表示のみ。commitはしない。
+--step: 現在の1 Phaseだけを実行して停止する。次回の通常コマンドは、整合する未完了workflow stateがあれば記録済みの次Phaseから連続実行する。stateまたはSESSION_BRIEFの整合性がない場合は停止する。
 EXECUTED がなければ疑似コマンドの実行は未確認です。失敗とは断定しません。
 [AgentSkills][HELP][PASS]
 [AgentSkills][PROMPT][END] ::help

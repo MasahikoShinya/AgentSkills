@@ -561,21 +561,21 @@ test_pseudo_command_execution_marker() {
 }
 
 test_workflow_resume_state() {
-  local repo output rc
+  local repo output rc state_file
 
   repo="$(new_repo)"
   printf 'pre-existing staged change\n' >>"$repo/app.txt"
   git -C "$repo" add app.txt
-  output="$(cd "$repo" && bash common/workflows/workflow-state.sh start sdd_tdd spec 2>&1)"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh start sdd_tdd spec "SDD workflow request" 2>&1)"
   assert_contains "$output" "started sdd_tdd" "SDD workflow state starts"
   assert_contains "$output" "Next phase: spec" "SDD workflow state records the first phase"
   set +e
-  output="$(cd "$repo" && bash common/workflows/workflow-state.sh start sdd_tdd spec 2>&1)"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh start sdd_tdd spec "SDD workflow request" 2>&1)"
   rc=$?
   set -e
   [[ "$rc" == "1" ]] && pass "unfinished SDD workflow state blocks replacement" || fail "unfinished SDD workflow state blocks replacement"
   assert_contains "$output" "Unfinished sdd_tdd workflow state already exists" "unfinished SDD workflow state blocker is visible"
-  assert_contains "$output" "--auto --resume" "unfinished SDD workflow state recommends resume"
+  assert_contains "$output" "::sdd_tdd <request>" "unfinished SDD workflow state recommends the default command"
   set +e
   output="$(cd "$repo" && bash common/workflows/workflow-state.sh advance sdd_tdd gate 2>&1)"
   rc=$?
@@ -584,21 +584,21 @@ test_workflow_resume_state() {
   assert_contains "$output" "must advance from spec to test" "SDD skipped phase blocker identifies required transition"
   output="$(cd "$repo" && bash common/workflows/workflow-state.sh advance sdd_tdd test 2>&1)"
   assert_contains "$output" "Next phase: test" "SDD workflow state advances"
-  output="$(cd "$repo" && bash common/workflows/workflow-state.sh show sdd_tdd 2>&1)"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh show sdd_tdd "SDD workflow request" 2>&1)"
   assert_contains "$output" "resumable sdd_tdd workflow" "SDD workflow state is resumable"
   assert_contains "$output" "Next phase: test" "SDD resume uses the recorded next phase"
   assert_contains "$output" "app.txt" "SDD resume exposes initial staged paths"
 
   printf 'Changed brief after state capture.\n' >>"$repo/SESSION_BRIEF.md"
   set +e
-  output="$(cd "$repo" && bash common/workflows/workflow-state.sh show sdd_tdd 2>&1)"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh show sdd_tdd "SDD workflow request" 2>&1)"
   rc=$?
   set -e
   [[ "$rc" == "1" ]] && pass "brief changes block SDD workflow resume" || fail "brief changes block SDD workflow resume"
   assert_contains "$output" "SESSION_BRIEF.md changed" "brief change blocker is visible"
 
   repo="$(new_repo)"
-  output="$(cd "$repo" && bash common/workflows/workflow-state.sh start resolve inspect 2>&1)"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh start resolve inspect "Resolve workflow request" 2>&1)"
   assert_contains "$output" "started resolve" "resolve workflow state starts"
   set +e
   output="$(cd "$repo" && bash common/workflows/workflow-state.sh advance resolve review 2>&1)"
@@ -608,8 +608,53 @@ test_workflow_resume_state() {
   assert_contains "$output" "must advance from inspect to implement" "resolve skipped phase blocker identifies required transition"
   output="$(cd "$repo" && bash common/workflows/workflow-state.sh advance resolve implement 2>&1)"
   assert_contains "$output" "Next phase: implement" "resolve workflow state advances"
-  output="$(cd "$repo" && bash common/workflows/workflow-state.sh show resolve 2>&1)"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh show resolve "Resolve workflow request" 2>&1)"
   assert_contains "$output" "Next phase: implement" "resolve resume uses the recorded next phase"
+  set +e
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh show resolve "Different resolve request" 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "1" ]] && pass "different resolve request blocks automatic resume" || fail "different resolve request blocks automatic resume"
+  assert_contains "$output" "does not match the requested work" "different resolve request blocker is visible"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh advance resolve verify 2>&1)"
+  assert_contains "$output" "Next phase: verify" "resolve workflow state advances to verify"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh advance resolve review 2>&1)"
+  assert_contains "$output" "Next phase: review" "resolve workflow state advances to review"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh advance resolve gate 2>&1)"
+  assert_contains "$output" "Next phase: gate" "resolve workflow state advances to gate"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh advance resolve complete 2>&1)"
+  assert_contains "$output" "Next phase: complete" "resolve workflow state advances to complete"
+  set +e
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh show resolve "Resolve workflow request" 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "1" ]] && pass "completed resolve workflow state is not resumable" || fail "completed resolve workflow state is not resumable"
+  assert_contains "$output" "resolve is already complete" "completed resolve workflow state explains new start"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh start resolve inspect "New resolve workflow request" 2>&1)"
+  assert_contains "$output" "started resolve" "completed resolve workflow state permits a new start"
+
+  repo="$(new_repo)"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh start resolve inspect "Legacy resolve workflow request" 2>&1)"
+  assert_contains "$output" "started resolve" "legacy test workflow state starts"
+  set +e
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh discard-legacy resolve 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "1" ]] && pass "identified resolve workflow state cannot be discarded as legacy" || fail "identified resolve workflow state cannot be discarded as legacy"
+  assert_contains "$output" "has a request identity" "identified resolve workflow state explains discard refusal"
+  state_file="$repo/.git/agentskills/workflows/resolve.state"
+  grep -v '^request_hash=' "$state_file" >"$state_file.legacy"
+  mv "$state_file.legacy" "$state_file"
+  set +e
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh show resolve "Legacy resolve workflow request" 2>&1)"
+  rc=$?
+  set -e
+  [[ "$rc" == "1" ]] && pass "legacy resolve workflow state blocks resume" || fail "legacy resolve workflow state blocks resume"
+  assert_contains "$output" "discard-legacy resolve" "legacy resolve workflow state provides discard command"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh discard-legacy resolve 2>&1)"
+  assert_contains "$output" "discarded legacy resolve workflow state" "legacy resolve workflow state can be explicitly discarded"
+  output="$(cd "$repo" && bash common/workflows/workflow-state.sh start resolve inspect "Replacement resolve workflow request" 2>&1)"
+  assert_contains "$output" "started resolve" "discarded legacy resolve workflow state permits a new start"
 }
 
 test_workflow_command_routes() {
@@ -620,28 +665,28 @@ test_workflow_command_routes() {
     prompt="${route#*:}"
     [[ -f "$SOURCE_COMMON/prompts/$prompt" ]] && pass "$command prompt file exists" || fail "$command prompt file exists"
     command_syntax="::$command"
-    [[ "$command" == "resolve" || "$command" == "sdd_tdd" ]] && command_syntax="::$command [--auto] [--resume]"
+    [[ "$command" == "resolve" || "$command" == "sdd_tdd" ]] && command_syntax="::$command [--step] <request>"
     expected="| \`$command_syntax\` | \`.agentskills/prompts/$prompt\`"
     assert_contains "$rules" "$expected" "rules route $command to its prompt"
   done
   resolve_prompt="$(cat "$SOURCE_COMMON/prompts/resolve.md")"
-  assert_contains "$resolve_prompt" '`::resolve --auto <request>`' "resolve command defines continuous mode"
+  assert_contains "$resolve_prompt" '`::resolve <request>` is the default continuous mode' "resolve command defaults to continuous mode"
   assert_contains "$resolve_prompt" 'It does not create or update `SESSION_BRIEF.md` solely for this command' "resolve continuous mode preserves session brief ownership"
   assert_contains "$resolve_prompt" 'it never commits, pushes, or merges' "resolve continuous mode does not publish changes"
   assert_contains "$resolve_prompt" 'An individual gate check may emit `WARNING` for information' "resolve continuous mode distinguishes check warnings from final gate status"
-  assert_contains "$resolve_prompt" '`::resolve --auto --resume`' "resolve command defines continuous resume mode"
-  assert_contains "$rules" '`::resolve [--auto] [--resume]`' "rules expose the optional resolve continuous resume mode"
+  assert_contains "$resolve_prompt" '`::resolve --step <request>`' "resolve command defines step mode"
+  assert_contains "$rules" '`::resolve [--step] <request>`' "rules expose the optional resolve step mode"
   sdd_prompt="$(cat "$SOURCE_COMMON/prompts/sdd_tdd.md")"
   assert_contains "$sdd_prompt" 'required SDD specification artifact' "SDD and TDD command records its specification artifact"
   assert_contains "$sdd_prompt" 'Do not implement without the required SDD specification artifact and test evidence.' "SDD and TDD command requires test evidence before implementation"
-  assert_contains "$sdd_prompt" '`::sdd_tdd --auto <request>`' "SDD and TDD command defines continuous mode"
+  assert_contains "$sdd_prompt" '`::sdd_tdd <request>` is the default continuous mode' "SDD and TDD command defaults to continuous mode"
   assert_contains "$sdd_prompt" 'It never commits, pushes, merges' "continuous mode does not publish changes"
   assert_contains "$sdd_prompt" 'read `failure-analysis.md` and report the analysis only' "continuous mode analyzes failures without consecutive fixes"
   assert_contains "$sdd_prompt" 'An individual gate check may emit `WARNING` for information' "continuous mode distinguishes check warnings from final gate status"
   assert_contains "$sdd_prompt" 'final `GATE` or `HOOK` status is `BLOCKER` or `FAIL`' "continuous mode stops on failing final gate or hook status"
   assert_not_contains "$sdd_prompt" 'a test, review, gate, or hook reports `WARNING`, `BLOCKER`, or `FAIL`' "continuous mode does not stop on every informational warning"
-  assert_contains "$sdd_prompt" '`::sdd_tdd --auto --resume`' "SDD and TDD command defines continuous resume mode"
-  assert_contains "$rules" '`::sdd_tdd [--auto] [--resume]`' "rules expose the optional continuous resume mode"
+  assert_contains "$sdd_prompt" '`::sdd_tdd --step <request>`' "SDD and TDD command defines step mode"
+  assert_contains "$rules" '`::sdd_tdd [--step] <request>`' "rules expose the optional continuous step mode"
   assert_contains "$rules" 'installed `test-orchestrator` skill' "test-plan requires the installed test-orchestrator skill"
   if [[ "$rules" == *'converge-bugfix'* ]]; then
     fail "rules no longer expose the previous convergence command"
