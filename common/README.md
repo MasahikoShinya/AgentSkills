@@ -93,9 +93,9 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 ## 擬似コマンド
 
 ```text
-::resolve
+::resolve <確定した依頼>
 ::resolve --step <確定した依頼>
-::sdd_tdd
+::sdd_tdd <確定した依頼>
 ::sdd_tdd --step <確定した依頼>
 ::ui-mock
 ::test-plan
