@@ -8,7 +8,7 @@ In Convergence mode:
 2. Read the matching file under `.agentskills/prompts/` (or `common/prompts/` in the AgentSkills repository).
 3. Display the rule, brief, prompt, mode, and phase actually used.
 
-For `::ui-mock` and `::test-plan`, use Expansion mode and read the matching prompt. For `::test-plan`, use the installed `test-orchestrator` skill only for its planning phase; do not run its test execution phases.
+For `::ui-mock` and `::test-plan`, use Expansion mode and read the matching prompt. For `::test-plan`, use the installed `test-orchestrator` skill only for its planning phase when executable; otherwise use the Codex-compatible fallback in the prompt. Do not run its test execution phases.
 
 For `::sdd_tdd`, do not start tests until the adopted specification has been written to `SESSION_BRIEF.md`, and do not implement until failing-test or reproduction evidence has been obtained. `::sdd_tdd <request>` continues through Gate without phase-by-phase approval only when the request is confirmed and bounded; `::sdd_tdd --step <request>` executes one Phase. Stop for ambiguity, mixed existing changes, missing project-native test evidence, a final review `WARNING` / `BLOCKER`, a final `GATE` / `HOOK` `BLOCKER` / `FAIL`, or high-risk operations. An individual gate-check `WARNING` is informational when the final status is `PASS`.
 

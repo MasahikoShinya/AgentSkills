@@ -115,7 +115,7 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 
 `::resolve --step` と `::sdd_tdd --step` は現在の1 Phaseだけを実行して停止します。通常コマンドは、同じ依頼本文と整合する未完了 state があれば記録済みの次Phaseから自動再開します。stateは `.git/agentskills/workflows/` に保存され、依頼本文、開始時のstaged files、`SESSION_BRIEF.md`のhashを確認します。stateがない、または前回 state が完了済みなら新規開始し、異なる依頼またはbriefが変更されている場合は停止します。旧kitが作成したrequest identityのない state は自動再開せず、表示される `discard-legacy` command で確認後にだけ破棄できます。
 
-`::ui-mock`は`docs/ui-mocks/<slug>.html`に静的HTMLのUI仕様モックを作ります。`::test-plan`は利用可能な`test-orchestrator`スキルの計画フェーズだけを使い、`docs/test-plans/<slug>.md`に受け入れ条件とテスト計画を作ります。両方ともExpansion用の下書きであり、採用後に`::sdd_tdd`へ渡します。
+`::ui-mock`は`docs/ui-mocks/<slug>.html`に静的HTMLのUI仕様モックを作ります。`::test-plan`は利用可能で実行可能な`test-orchestrator`の計画フェーズを優先し、使えないCodex環境では同じ受け入れ条件とテスト計画を`docs/test-plans/<slug>.md`へ直接作成します。両方ともExpansion用の下書きであり、採用後に`::sdd_tdd`へ渡します。
 
 `::help`は、疑似コマンド、`git commit`／`git push`でHookが行う検査、直接実行できる主要scriptをコンパクトに表示します。表示のみで、Hookやreviewerは実行しません。疑似コマンドが実際に認識・配送された場合だけ、回答の最終行に`[AgentSkills][EXECUTED] ::<command>`を表示します。この行は起動確認専用であり、review・test・gate・hookの成功を意味しません。それらは既存のcomponent statusで判断します。`EXECUTED`がなければ疑似コマンドの実行は未確認であり、失敗とは断定しません。`::gate`・Hook・scriptは端末のstatus行を実行証跡とします。
 

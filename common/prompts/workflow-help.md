@@ -14,7 +14,7 @@ Display the following compact help exactly enough to identify each entry point. 
   ::sdd_tdd <依頼>              SESSION_BRIEF仕様 -> 失敗テスト -> 実装 -> レビュー -> ゲート
   ::sdd_tdd --step <依頼>       sdd_tddを1 Phaseだけ実行して停止
   ::ui-mock       静的HTMLのUIモックを docs/ui-mocks/ に作成
-  ::test-plan     test-orchestratorの計画フェーズで docs/test-plans/ を作成
+  ::test-plan     test-orchestratorの計画、またはCodex fallbackで docs/test-plans/ を作成
   ::diff-review           作業ツリーと staged 差分をレビュー。変更しない
   ::subagent-review       親会話に依存しない独立レビュー。変更しない
   ::pr-review [PR]        GitHub PR を読み取り専用でレビュー

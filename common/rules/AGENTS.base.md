@@ -43,7 +43,7 @@ Select `Expansion` for ideation, requirement discovery, alternative comparison, 
 
 For `Uncertain`, do not change code. State the ambiguity and ask the user to choose or confirm the mode.
 
-For `::ui-mock` and `::test-plan`, select `Expansion`. They produce only draft specification artifacts and must not modify application source, production tests, package configuration, or hooks.
+For `::ui-mock` and `::test-plan`, select `Expansion`. They produce only draft specification artifacts and must not modify application source, production tests, package configuration, or hooks. For `::test-plan`, prefer the installed `test-orchestrator` planning phase when executable; otherwise use the Codex-compatible fallback defined in its prompt.
 
 For `::resolve`, select `Convergence`, read `.agentskills/prompts/resolve.md`, and use an existing `SESSION_BRIEF.md` only when it applies. Do not create a task or new specification artifact solely because `::resolve` was used. `::resolve <request>` uses continuous mode by default only when the request has a confirmed, bounded expected behavior and scope; otherwise report `PROMPT BLOCKER` without editing. It does not create or update `SESSION_BRIEF.md` solely for this command and does not commit, push, or merge. `::resolve --step <request>` executes only one Phase. Every invocation must check `.agentskills/workflows/workflow-state.sh show resolve "<exact request>"` first: resume an unfinished state at its recorded next phase only when the request matches, or start a new state when none exists or the previous state is complete.
 
@@ -113,7 +113,7 @@ On test, review, gate, or hook failure, do not make consecutive fixes. Read `.ag
 | `::resolve [--step] <request>` | `.agentskills/prompts/resolve.md` |
 | `::sdd_tdd [--step] <request>` | `.agentskills/prompts/sdd_tdd.md` |
 | `::ui-mock` | `.agentskills/prompts/ui-mock.md` |
-| `::test-plan` | `.agentskills/prompts/test-plan.md` and the installed `test-orchestrator` skill |
+| `::test-plan` | `.agentskills/prompts/test-plan.md`; use `test-orchestrator` when executable, otherwise the Codex fallback |
 | `::diff-review` | `.agentskills/prompts/diff-review.md` |
 | `::subagent-review` | `.agentskills/prompts/subagent-review.md` |
 | `::pr-review [PR-number-or-URL]` | `.agentskills/prompts/pr-review.md` |

@@ -658,7 +658,7 @@ test_workflow_resume_state() {
 }
 
 test_workflow_command_routes() {
-  local rules resolve_prompt sdd_prompt route command prompt expected command_syntax
+  local rules resolve_prompt sdd_prompt test_plan_prompt route command prompt expected command_syntax
   rules="$(cat "$SOURCE_COMMON/rules/AGENTS.base.md")"
   for route in 'resolve:resolve.md' 'sdd_tdd:sdd_tdd.md' 'ui-mock:ui-mock.md' 'test-plan:test-plan.md'; do
     command="${route%%:*}"
@@ -687,7 +687,10 @@ test_workflow_command_routes() {
   assert_not_contains "$sdd_prompt" 'a test, review, gate, or hook reports `WARNING`, `BLOCKER`, or `FAIL`' "continuous mode does not stop on every informational warning"
   assert_contains "$sdd_prompt" '`::sdd_tdd --step <request>`' "SDD and TDD command defines step mode"
   assert_contains "$rules" '`::sdd_tdd [--step] <request>`' "rules expose the optional continuous step mode"
-  assert_contains "$rules" 'installed `test-orchestrator` skill' "test-plan requires the installed test-orchestrator skill"
+  test_plan_prompt="$(cat "$SOURCE_COMMON/prompts/test-plan.md")"
+  assert_contains "$test_plan_prompt" 'Codex-compatible fallback' "test-plan defines the Codex fallback"
+  assert_contains "$test_plan_prompt" 'instead of reporting `PROMPT BLOCKER`' "test-plan does not block Codex when the planner is unavailable"
+  assert_contains "$rules" 'otherwise use the Codex-compatible fallback' "rules route unavailable planner work to the Codex fallback"
   if [[ "$rules" == *'converge-bugfix'* ]]; then
     fail "rules no longer expose the previous convergence command"
   else
