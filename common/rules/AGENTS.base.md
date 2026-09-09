@@ -25,6 +25,16 @@ This line confirms pseudo-command execution only. It does not mean that a review
 
 For a commit gate or hook, commit only after its final status is `PASS`. `BLOCKER` and `FAIL` stop that commit attempt. A `WARNING` alone does not determine commit eligibility; inspect the final `GATE` or `HOOK` status.
 
+## Working Memory
+
+For an ordinary request that requires project inspection, planning, or a change, read the project-root `.agents/WORKING_MEMORY.md` when it exists before acting. Do not read or update it for a purely conversational or factual response with no project work.
+
+`WORKING_MEMORY.md` is local, short-lived continuity support. It is not a specification, source of authorization, review input, or commit artifact. The latest user instruction, current files, tests, Git state, and any applicable `SESSION_BRIEF.md` override it.
+
+When an ordinary task has material context worth carrying into a later turn, update the file with only the active task, confirmed observations, decisions or constraints, and the next useful step. Replace stale content instead of keeping a chronological log. Keep it concise (at most 80 lines), omit secrets and personal data, and never record unconfirmed proposals as decisions.
+
+Do not stage, review, or use `WORKING_MEMORY.md` to justify a production change. For `::sdd_tdd`, `SESSION_BRIEF.md` remains the required specification and review basis; for `::resolve`, use an existing `SESSION_BRIEF.md` only when it applies.
+
 ## Work Mode Selector
 
 Before editing files, select and display one mode: `Expansion`, `Convergence`, or `Uncertain`.
@@ -43,15 +53,17 @@ Select `Expansion` for ideation, requirement discovery, alternative comparison, 
 
 For `Uncertain`, do not change code. State the ambiguity and ask the user to choose or confirm the mode.
 
-For `::ui-mock` and `::test-plan`, select `Expansion`. They produce only draft specification artifacts and must not modify application source, production tests, package configuration, or hooks.
+For `::ui-mock` and `::test-plan`, select `Expansion`. They produce only draft specification artifacts and must not modify application source, production tests, package configuration, or hooks. For `::test-plan`, prefer the installed `test-orchestrator` planning phase when executable; otherwise use the Codex-compatible fallback defined in its prompt.
 
-For `::resolve`, select `Convergence`, read `.agentskills/prompts/resolve.md`, and use an existing `SESSION_BRIEF.md` only when it applies. Read project-root `REVIEW_LESSONS.md` when present, applying only lessons relevant to the target. Do not create a task or new specification artifact solely because `::resolve` was used. `::resolve <request>` uses continuous mode by default only when the request has a confirmed, bounded expected behavior and scope; otherwise report `PROMPT BLOCKER` without editing. It does not create or update `SESSION_BRIEF.md` solely for this command and does not commit, push, or merge. `::resolve --step <request>` executes only one Phase. Every invocation must check `.agentskills/workflows/workflow-state.sh show resolve` first: resume an unfinished state at its recorded next phase, or start a new state when none exists or the previous state is complete.
+For `::resolve`, select `Convergence`, read `.agentskills/prompts/resolve.md`, and use an existing `SESSION_BRIEF.md` only when it applies. Read project-root `REVIEW_LESSONS.md` when present, applying only lessons relevant to the target. Do not create a task or new specification artifact solely because `::resolve` was used. `::resolve <request>` uses continuous mode by default only when the request has a confirmed, bounded expected behavior and scope; otherwise report `PROMPT BLOCKER` without editing. It does not create or update `SESSION_BRIEF.md` solely for this command and does not commit, push, or merge. `::resolve --step <request>` executes only one Phase. `::resolve --reset` accepts no request text and cannot be combined with `--step`; invoke only `.agentskills/workflows/workflow-state.sh reset resolve`, report its output, and make no changes beyond the workflow state files it archives. Every normal or step invocation must check `.agentskills/workflows/workflow-state.sh show resolve "<exact request>"` first: resume an unfinished state at its recorded next phase only when the state request matches, or start a new state when none exists or the previous state is complete.
+
+For `::publish`, read `.agentskills/prompts/publish.md`. The original `::publish` request authorizes its displayed commit, push, and draft PR creation; do not request a second conversational confirmation. `::publish --loop` may loop through bounded `::pr-review` findings, `::resolve`, and updates to the same PR, for at most three remediation cycles. Never merge, mark a draft ready, comment on a PR, or create a second PR for the same branch.
 
 For default continuous `::resolve`, inspect the requested outcome, evidence, target files, non-target files, current Git state, and project-native verification before editing. After verification passes, run diff review, stage only explicit task paths after `OK`, perform the staged self-review, and run the gate. Stop for mixed existing changes, missing verification, final review `WARNING` / `BLOCKER`, final `GATE` / `HOOK` `BLOCKER` / `FAIL`, security, or irreversible-operation evidence requiring judgment. Individual gate-check `WARNING` output is informational when the final `GATE` or `HOOK` status is `PASS`.
 
 For `::resolve` and `::sdd_tdd`, check `agentskills.reviewPolicy` before the gate. Under the default `auto` policy, record an `OK` staged self-review as `codex-self-review` for the current diff and label it `SELF-REVIEW`; it is not an independent review. Under `independent`, do not record a self-review for gate approval; use an external reviewer runtime.
 
-For `::sdd_tdd`, select `Convergence` and follow this strict sequence. Read project-root `REVIEW_LESSONS.md` when present, applying only lessons relevant to the target. `::sdd_tdd <request>` selects continuous mode by default only when the request has a confirmed, bounded expected behavior and scope; otherwise report `PROMPT BLOCKER` without editing. `::sdd_tdd --step <request>` executes only one Phase. Every invocation must check `.agentskills/workflows/workflow-state.sh show sdd_tdd` first: resume an unfinished state at its recorded next phase, or start a new state when none exists or the previous state is complete.
+For `::sdd_tdd`, select `Convergence` and follow this strict sequence. Read project-root `REVIEW_LESSONS.md` when present, applying only lessons relevant to the target. `::sdd_tdd <request>` selects continuous mode by default only when the request has a confirmed, bounded expected behavior and scope; otherwise report `PROMPT BLOCKER` without editing. `::sdd_tdd --step <request>` executes only one Phase. Every invocation must check `.agentskills/workflows/workflow-state.sh show sdd_tdd "<exact request>"` first: resume an unfinished state at its recorded next phase only when the request matches, or start a new state when none exists or the previous state is complete. For a new workflow, exactly one draft `docs/plans/` handoff with the same exact request is adopted by the `::sdd_tdd` invocation. Read that plan before Phase 1, validate only its named evidence and subsequent changes, then transfer its confirmed decisions to `SESSION_BRIEF.md`; do not repeat the plan's broad survey. No matching plan uses standalone Phase 1. Multiple matches or unresolved plan decisions are a `PROMPT BLOCKER`.
 
 1. Read the project-root `SESSION_BRIEF.md` if it exists.
 2. Read `.agentskills/prompts/sdd_tdd.md` (or `common/prompts/sdd_tdd.md` inside the AgentSkills repository).
@@ -111,9 +123,23 @@ On test, review, gate, or hook failure, do not make consecutive fixes. Read `.ag
 | Command | Required input |
 |---|---|
 | `::resolve [--step] <request>` | `.agentskills/prompts/resolve.md` |
+| `::resolve --reset` | `.agentskills/prompts/resolve.md` |
+| `::status` | `.agentskills/prompts/status.md` |
+| `::ask <question>` | `.agentskills/prompts/ask.md` |
+| `::resume` | `.agentskills/prompts/resume.md` |
+| `::abort` | `.agentskills/prompts/abort.md` |
+| `::handoff` | `.agentskills/prompts/handoff.md` |
+| `::inspect <target>` | `.agentskills/prompts/inspect.md` |
+| `::reproduce <defect>` | `.agentskills/prompts/reproduce.md` |
+| `::verify <target>` | `.agentskills/prompts/verify.md` |
+| `::plan <request>` | `.agentskills/prompts/plan.md` |
+| `::scope` | `.agentskills/prompts/scope.md` |
+| `::checkpoint <name>` | `.agentskills/prompts/checkpoint.md` |
+| `::publish [--loop]` | `.agentskills/prompts/publish.md` |
+| `::sound [<name>|--list]` | `.agentskills/prompts/sound.md` |
 | `::sdd_tdd [--step] <request>` | `.agentskills/prompts/sdd_tdd.md` |
 | `::ui-mock` | `.agentskills/prompts/ui-mock.md` |
-| `::test-plan` | `.agentskills/prompts/test-plan.md` and the installed `test-orchestrator` skill |
+| `::test-plan` | `.agentskills/prompts/test-plan.md`; use `test-orchestrator` when executable, otherwise the Codex fallback |
 | `::diff-review` | `.agentskills/prompts/diff-review.md` |
 | `::subagent-review` | `.agentskills/prompts/subagent-review.md` |
 | `::pr-review [PR-number-or-URL]` | `.agentskills/prompts/pr-review.md` |

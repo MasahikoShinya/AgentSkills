@@ -15,7 +15,9 @@ Use this prompt only for strict Convergence work. Follow SDD and TDD in this exa
 
 `::sdd_tdd --step <request>` is the step mode. Complete only the recorded current Phase, then report `PROMPT END` and wait for the next user instruction. It preserves the approval stops described below.
 
-Before any work, run `bash .agentskills/workflows/workflow-state.sh show sdd_tdd` (or the equivalent `common/` path). If it reports an unfinished state, resume only at its recorded `Next phase`; do not infer a phase from conversation history or restart Spec. If it reports no state or an already-complete state, start a new workflow with `bash .agentskills/workflows/workflow-state.sh start sdd_tdd spec`. Any other `BLOCKER` stops the command without editing.
+Before any work, run `bash .agentskills/workflows/workflow-state.sh show sdd_tdd "<exact request>"` (or the equivalent `common/` path). If it reports an unfinished state, resume only at its recorded `Next phase`; do not infer a phase from conversation history or restart Spec. The request must match the original request text. If it reports no state or an already-complete state, start a new workflow with `bash .agentskills/workflows/workflow-state.sh start sdd_tdd spec "<request>"`. A legacy-state `BLOCKER` has no request identity and must be reviewed before the explicitly shown `discard-legacy` command is run. Any other `BLOCKER` stops the command without editing.
+
+When starting a new workflow, search `docs/plans/` for a `## SDD Handoff` block whose `Request` exactly matches the `::sdd_tdd` request and whose `Status` is `draft`. The invocation is the user's adoption signal. If exactly one matching draft exists, read it first and validate that its unresolved decisions, scope, and verification are no longer ambiguous. Only then change its handoff fields to `Status: adopted` and `Adopted by: ::sdd_tdd`, and use it as the adopted-plan input for Phase 1. If no matching draft exists, continue with the standalone Phase 1 procedure. If more than one matching draft exists, or validation finds ambiguity, report `PROMPT BLOCKER`; do not choose a plan, mark it adopted, or start tests.
 
 Execute only the phase reported as `Next phase`. In step mode, stop immediately after completing and recording that phase. In default continuous mode, proceed through the next recorded phase in the mandatory order.
 
@@ -33,7 +35,7 @@ An individual gate check may emit `WARNING` for information. Report it, but cont
 
 ## Phase 1: Spec
 
-Do not change application code or tests. Read `AGENTS.md` and `SESSION_BRIEF.md`, inspect the current implementation and tests, then report:
+Do not change application code or tests. Read `AGENTS.md` and `SESSION_BRIEF.md`. When an adopted-plan input exists, treat its confirmed behavior, scope, non-scope, risks, implementation outline, and verification as the starting point. Inspect only the plan's named files and tests plus changes since the plan that could invalidate it; do not repeat its broad repository survey. Confirm the plan still matches current behavior, resolve no new product decisions by inference, and report only changed facts, deviations, and remaining risks. When no adopted-plan input exists, inspect the current implementation and tests as before. Then report:
 
 - current behavior
 - confirmed expected behavior
@@ -46,7 +48,7 @@ Do not change application code or tests. Read `AGENTS.md` and `SESSION_BRIEF.md`
 
 After the adopted specification has been saved, run `bash .agentskills/workflows/workflow-state.sh advance sdd_tdd test` before reporting the next action.
 
-In step mode, stop and wait for user permission to record the adopted specification in `SESSION_BRIEF.md`. In default continuous mode, record it immediately only when the request is sufficiently unambiguous. Do not call Phase 1 complete until that specification artifact has been saved. Create it from `.agentskills/briefs/SESSION_BRIEF.template.md` when absent, or update it when present. Write only the confirmed specification, target, non-target, prohibitions, and verification method.
+In step mode, stop and wait for user permission to record the adopted specification in `SESSION_BRIEF.md`. In default continuous mode, record it immediately only when the request is sufficiently unambiguous. Do not call Phase 1 complete until that specification artifact has been saved. Create it from `.agentskills/briefs/SESSION_BRIEF.template.md` when absent, or update it when present. When an adopted plan was used, record its path and only the confirmed specification, target, non-target, prohibitions, and verification method; the plan remains the exploration record and `SESSION_BRIEF.md` remains the review basis.
 
 In step mode, then report:
 

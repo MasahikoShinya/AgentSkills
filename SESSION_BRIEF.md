@@ -8,15 +8,18 @@ Convergence
 
 ## Purpose
 
-Add the `::resolve`, `::ui-mock`, and `::test-plan` pseudo-commands, make `::sdd_tdd` a strict SDD + TDD workflow, and make LLM review failures diagnosable.
+Add the `::resolve`, `::ui-mock`, and `::test-plan` pseudo-commands, make `::sdd_tdd` a strict SDD + TDD workflow, make LLM review failures diagnosable, and eliminate duplicate broad planning between `::plan` and `::sdd_tdd`.
 
 ## Confirmed Specification
 
 - `::resolve` handles a bounded review finding, regression, or confirmed defect without creating a task or new specification artifact.
 - `::sdd_tdd` writes an adopted specification to `SESSION_BRIEF.md`, obtains failing-test or reproduction evidence, then proceeds through implementation, review, and gate.
+- A `::plan` draft includes an exact-request `SDD Handoff`; a later `::sdd_tdd` invocation with that request adopts exactly one matching draft, validates only its named evidence and subsequent changes, and transfers confirmed decisions to `SESSION_BRIEF.md` without repeating the broad survey.
+- No matching draft uses standalone SDD Spec; multiple matching drafts or unresolved plan decisions block SDD before tests begin.
 - `::ui-mock` is an Expansion command that writes only a static UI draft to `docs/ui-mocks/<slug>.html`.
 - `::test-plan` is an Expansion command that uses the installed `test-orchestrator` skill in planning-only mode and writes a draft to `docs/test-plans/<slug>.md`.
-- `::test-plan` reports `BLOCKER` when the required skill is unavailable; it does not silently replace the skill.
+- `::test-plan` uses the Codex-compatible fallback when the required skill is unavailable.
+- `::pr-review` treats DRAFT as informational only. When the review result is `OK`, it tells the user `Next instruction: 「マージしてください」`.
 - `::converge-bugfix` is not retained as a compatibility alias.
 - Each non-cached Codex staged-diff review records a persistent run-state file and stdout/stderr log under its local `.git/agentskills/reviews/` context directory.
 - Review start and failure output show the run-state and log paths. Invalid JSON also preserves the returned result file.
@@ -49,6 +52,7 @@ The workflow needs distinct entry points for rapid bounded resolution, strict SD
 
 - Confirm all four commands map to their intended prompts in the common rules.
 - Confirm `::sdd_tdd` requires the brief specification and failing-test evidence.
+- Confirm `::plan` emits the SDD handoff contract and `::sdd_tdd` consumes exactly one matching draft without broad replanning.
 - Confirm `::test-plan` requires the installed `test-orchestrator` skill.
 - Confirm reviewer failure output exposes persistent diagnostics.
 - Confirm auto and independent review policies handle self-review caches as specified.

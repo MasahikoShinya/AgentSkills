@@ -20,7 +20,8 @@ LLMエージェントは、アイディア出し、設計、仕様整理、ド�
 そのため、収束フェーズでは、LLMの能力だけに頼るのではなく、以下のような制御を組み合わせる必要がある。
 
 - `AGENTS.md` / `CLAUDE.md` による行動ルール
-- Session Brief による短期状態固定
+- Working Memory による通常タスクの短期継続
+- Session Brief による収束仕様・状態固定
 - プロンプトテンプレートによる手順固定
 - `git diff` による実変更レビュー
 - サブエージェントまたは別セッションによる独立レビュー
@@ -56,6 +57,7 @@ LLMエージェントは、アイディア出し、設計、仕様整理、ド�
 - Git Hook
 - git diff
 - AGENTS.md
+- `.agents/WORKING_MEMORY.md`
 - SESSION_BRIEF.md
 - prompts/*.md
 
@@ -71,11 +73,16 @@ Codex の AGENTS.md、Subagent、Slash Command、approval / sandbox も補助と
 
 - 常時ルールは AGENTS.md / CLAUDE.md に書く
 - 詳細手順は prompts/*.md に書く
+- 通常タスクの一時的な継続情報は `.agents/WORKING_MEMORY.md` に書く
 - 今回の作業状態は SESSION_BRIEF.md に書く
 - 実行時は擬似コマンドまたは明示指示で prompts/*.md を呼ぶ
 - 強制的な検査は shell script / Git Hook に置く
 
 v0.1の収束キット自体はClaude/Codex固有のSkillとして実装しない。既存Skillは従来どおりAgentSkillsを正本とし、各ツールのSkillディレクトリへsymlinkして利用する。将来、収束キットのSkill入口を追加する場合も、共通本文は `common/` に置き、入口だけを各ツールへsymlinkする。
+
+通常タスクでは、エージェントはプロジェクト調査・計画・変更の前に、存在すれば`.agents/WORKING_MEMORY.md`を読む。そこには現在の依頼、確認済みの観測、決定済みの制約、次の有用な作業だけを短く記録し、古い内容は置換する。これは会話の代替、仕様、承認、レビュー根拠ではない。ユーザーの最新指示、現行ファイル、テスト、Git状態、適用可能な`SESSION_BRIEF.md`が優先する。
+
+`WORKING_MEMORY.md`は`.git/info/exclude`でローカル専用にし、差分・レビュー・stage・commitから除外する。確定仕様と収束フローの根拠は従来どおり`SESSION_BRIEF.md`だけに保持するため、通常の途中経過で仕様書の品質やレビュー能力を下げない。
 
 ### 3.3 収束フェーズでは SDD + TDD を使う
 
@@ -445,6 +452,18 @@ Claude / Codex 共通で使うため、正式な slash command ではなく、�
 
 - `::resolve`
 - `::resolve --step <依頼>`
+- `::resolve --reset`
+- `::status`
+- `::resume`
+- `::abort`
+- `::handoff`
+- `::inspect <対象>`
+- `::reproduce <不具合>`
+- `::verify <対象>`
+- `::plan <依頼>`
+- `::scope`
+- `::checkpoint <名前>`
+- `::publish`
 - `::sdd_tdd`
 - `::sdd_tdd --step <依頼>`
 - `::ui-mock`
@@ -472,7 +491,11 @@ Claude / Codex 共通で使うため、正式な slash command ではなく、�
 
 `::resolve <依頼>`は、期待動作と対象範囲が明確な限定修正に限り、検証、diff review、明示的な対象pathのstage、staged self-review、Gateまでをphaseごとの確認なしで連続実行する。`SESSION_BRIEF.md`は新規作成・更新せず、commit、push、mergeも行わない。仕様の曖昧さ、既存差分の混在、必要な検証の不足、最終reviewの`WARNING` / `BLOCKER`、最終GATE/HOOKの`BLOCKER` / `FAIL`、security・外部公開・不可逆操作では停止する。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら情報として表示するだけで連続実行を止めない。失敗時は`failure-analysis.md`による分析までを自動化し、同じrunで連続修正しない。
 
-`::resolve --step <依頼>`は現在の1 Phaseだけを実行して停止する。通常の`::resolve <依頼>`はstate helperが`.git/agentskills/workflows/resolve.state`に記録した次Phase、開始時のstaged files、SESSION_BRIEF hashを確認し、整合する未完了 state があれば自動再開する。stateがない、または前回 state が完了済みなら新規開始する。
+`::resolve --step <依頼>`は現在の1 Phaseだけを実行して停止する。通常の`::resolve <依頼>`はstate helperが`.git/agentskills/workflows/resolve.state`に記録した依頼本文、次Phase、開始時のstaged files、SESSION_BRIEF hashを確認し、同じ依頼本文と整合する未完了 state があれば自動再開する。stateがない、または前回 state が完了済みなら新規開始し、異なる依頼は停止する。旧kitが作成したrequest identityのない state は自動再開せず、表示される `discard-legacy` command で確認後にだけ破棄できる。
+
+`::resolve --reset`は依頼文を受け付けず、`--step`とも併用できない専用操作である。実行前に状態のworkflow、保存済みrequest identity、next phase、記録日時、開始時のstage対象、state pathを表示する。`resolve.state`と`resolve.initial-staged`のみを`.git/agentskills/workflows/archive/resolve-<timestamp>.*`へ退避してからstateを破棄する。ソース、worktree、stage、commit、branch、PR、Git設定は変更しない。stateがない場合は`BLOCKER`とする。`discard-legacy`は後方互換性のため維持する。
+
+通常の調査・継続・公開には次を使う。`::status`は状態を表示し、`::resume`は唯一の識別済み未完了workflowを保存済み依頼から再開する。`::abort`は唯一のworkflow stateをarchiveして中断する。`::handoff`はWorking Memoryを更新し、`::checkpoint`はローカルの状態スナップショットを作る。`::inspect`は変更しない調査、`::reproduce`は本番コードを変更せずfailing testを残す再現、`::verify`は変更しない検証、`::scope`は差分の対象範囲確認、`::plan`は実装前の`SDD Handoff`付き下書きである。同一依頼の`::sdd_tdd`起動がその下書きを採用し、Phase 1の入力にする。`::publish`は明示確認後だけcommit、push、draft PR作成を実行し、PR番号を記録する。引数なしの`::pr-review`は記録済みの直前publish PRを最優先し、なければ現在ブランチ、最後に自分の最新Open PRを選ぶ。
 
 関連verificationの成功後、`::resolve`は再発防止を`regression-test`、`brief`、`rule`、`workflow-test`、`none`のいずれかへ一度だけ分類して`[AgentSkills][PREVENTION]`を表示する。`REVIEW_LESSONS.md`へ残すのは、既存のtest、rule、workflow guardだけでは意図が分からない再利用可能な防止策だけであり、レビュー履歴や却下案は保存しない。各項目は適用範囲、防止策、検証方法、利用できる場合は指摘IDを持つ。
 
@@ -492,14 +515,15 @@ Claude / Codex 共通で使うため、正式な slash command ではなく、�
 動作:
 
 - Phase 1で採用仕様を確認し、承認後にSESSION_BRIEF.mdへ保存する
+- 同一依頼の採用済み`::plan`が1件なら、その調査結果を入力として差分確認だけを行い、広い再調査をしない
 - 対象と関係する`REVIEW_LESSONS.md`の項目だけを参照する
 - Phase 2で失敗テストまたは再現証拠を取得する
 - Phase 3は仕様成果物とtest evidenceがある場合だけ実装する
 - Phase 4-5でdiff reviewとgateを実行する
 
-`::sdd_tdd <依頼>`は、期待動作と対象範囲が明確な依頼に限り、SpecからGateまでをphaseごとの確認なしで連続実行する。`SESSION_BRIEF.md`はPhase 1で自動更新し、commit、push、mergeは行わない。仕様の曖昧さ、既存差分の混在、必要なtest証跡の不足、最終reviewの`WARNING` / `BLOCKER`、最終GATE/HOOKの`BLOCKER` / `FAIL`、security・外部公開・不可逆操作では停止する。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら情報として表示するだけで連続実行を止めない。失敗時は`failure-analysis.md`による分析までを自動化し、同じrunで連続修正しない。
+`::sdd_tdd <依頼>`は、期待動作と対象範囲が明確な依頼に限り、SpecからGateまでをphaseごとの確認なしで連続実行する。新規workflowで`docs/plans/`に同一依頼のdraft handoffが1件あれば、この起動が採用操作となり、`SESSION_BRIEF.md`はその計画から確定事項だけをPhase 1で自動更新する。候補がない場合は単独Specを行い、候補が複数または未決事項が残る場合は停止する。commit、push、mergeは行わない。仕様の曖昧さ、既存差分の混在、必要なtest証跡の不足、最終reviewの`WARNING` / `BLOCKER`、最終GATE/HOOKの`BLOCKER` / `FAIL`、security・外部公開・不可逆操作では停止する。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら情報として表示するだけで連続実行を止めない。失敗時は`failure-analysis.md`による分析までを自動化し、同じrunで連続修正しない。
 
-`::sdd_tdd --step <依頼>`は現在の1 Phaseだけを実行して停止する。通常の`::sdd_tdd <依頼>`はstate helperが`.git/agentskills/workflows/sdd_tdd.state`に記録した次Phase、開始時のstaged files、SESSION_BRIEF hashを確認し、整合する未完了 state があれば自動再開する。stateがない、または前回 state が完了済みなら新規開始する。
+`::sdd_tdd --step <依頼>`は現在の1 Phaseだけを実行して停止する。通常の`::sdd_tdd <依頼>`はstate helperが`.git/agentskills/workflows/sdd_tdd.state`に記録した依頼本文、次Phase、開始時のstaged files、SESSION_BRIEF hashを確認し、同じ依頼本文と整合する未完了 state があれば自動再開する。stateがない、または前回 state が完了済みなら新規開始し、異なる依頼は停止する。旧kitが作成したrequest identityのない state は自動再開せず、表示される `discard-legacy` command で確認後にだけ破棄できる。
 
 例:
 
@@ -528,9 +552,9 @@ Claude / Codex 共通で使うため、正式な slash command ではなく、�
 
 動作:
 
-- インストール済み`test-orchestrator`のplanning phaseだけを使う
+- 実行可能な`test-orchestrator`のplanning phaseを優先する
 - `docs/test-plans/<slug>.md`へ下書き計画を書く
-- skillがない場合はBLOCKERと手動起動指示を表示する
+- skillまたは`test-planner`実行機能がないCodex環境では、main agentが同じ計画成果物を直接作る
 - Unit/E2E/visualの実行フェーズは開始しない
 
 ### 6.5 ::diff-review
@@ -586,7 +610,7 @@ Claude / Codex 共通で使うため、正式な slash command ではなく、�
 - `gh pr view`、`gh pr checks`、`gh pr diff`を根拠にする
 - 親会話、実装意図、過去レビューを前提にしない
 - base/head、draft、mergeability、checks、findingsを表示する
-- `OK / WARNING / BLOCKER`とmerge推奨を返す
+- `OK / WARNING / BLOCKER`と、利用者が次に出す直接的な指示を返す。DRAFTは情報表示だけとし、`OK`ならDRAFTであっても次の指示は「マージしてください」とする
 - merge、push、PR comment、PR editは実行しない
 
 例:
