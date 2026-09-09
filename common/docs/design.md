@@ -494,7 +494,7 @@ Claude / Codex 共通で使うため、正式な slash command ではなく、�
 
 `::resolve --reset`は依頼文を受け付けず、`--step`とも併用できない専用操作である。実行前に状態のworkflow、保存済みrequest identity、next phase、記録日時、開始時のstage対象、state pathを表示する。`resolve.state`と`resolve.initial-staged`のみを`.git/agentskills/workflows/archive/resolve-<timestamp>.*`へ退避してからstateを破棄する。ソース、worktree、stage、commit、branch、PR、Git設定は変更しない。stateがない場合は`BLOCKER`とする。`discard-legacy`は後方互換性のため維持する。
 
-通常の調査・継続・公開には次を使う。`::status`は状態を表示し、`::resume`は唯一の識別済み未完了workflowを保存済み依頼から再開する。`::abort`は唯一のworkflow stateをarchiveして中断する。`::handoff`はWorking Memoryを更新し、`::checkpoint`はローカルの状態スナップショットを作る。`::inspect`は変更しない調査、`::reproduce`は本番コードを変更せずfailing testを残す再現、`::verify`は変更しない検証、`::scope`は差分の対象範囲確認、`::plan`は実装前の下書きである。`::publish`は明示確認後だけcommit、push、draft PR作成を実行し、PR番号を記録する。引数なしの`::pr-review`は記録済みの直前publish PRを最優先し、なければ現在ブランチ、最後に自分の最新Open PRを選ぶ。
+通常の調査・継続・公開には次を使う。`::status`は状態を表示し、`::resume`は唯一の識別済み未完了workflowを保存済み依頼から再開する。`::abort`は唯一のworkflow stateをarchiveして中断する。`::handoff`はWorking Memoryを更新し、`::checkpoint`はローカルの状態スナップショットを作る。`::inspect`は変更しない調査、`::reproduce`は本番コードを変更せずfailing testを残す再現、`::verify`は変更しない検証、`::scope`は差分の対象範囲確認、`::plan`は実装前の`SDD Handoff`付き下書きである。同一依頼の`::sdd_tdd`起動がその下書きを採用し、Phase 1の入力にする。`::publish`は明示確認後だけcommit、push、draft PR作成を実行し、PR番号を記録する。引数なしの`::pr-review`は記録済みの直前publish PRを最優先し、なければ現在ブランチ、最後に自分の最新Open PRを選ぶ。
 
 例:
 
@@ -512,11 +512,12 @@ Claude / Codex 共通で使うため、正式な slash command ではなく、�
 動作:
 
 - Phase 1で採用仕様を確認し、承認後にSESSION_BRIEF.mdへ保存する
+- 同一依頼の採用済み`::plan`が1件なら、その調査結果を入力として差分確認だけを行い、広い再調査をしない
 - Phase 2で失敗テストまたは再現証拠を取得する
 - Phase 3は仕様成果物とtest evidenceがある場合だけ実装する
 - Phase 4-5でdiff reviewとgateを実行する
 
-`::sdd_tdd <依頼>`は、期待動作と対象範囲が明確な依頼に限り、SpecからGateまでをphaseごとの確認なしで連続実行する。`SESSION_BRIEF.md`はPhase 1で自動更新し、commit、push、mergeは行わない。仕様の曖昧さ、既存差分の混在、必要なtest証跡の不足、最終reviewの`WARNING` / `BLOCKER`、最終GATE/HOOKの`BLOCKER` / `FAIL`、security・外部公開・不可逆操作では停止する。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら情報として表示するだけで連続実行を止めない。失敗時は`failure-analysis.md`による分析までを自動化し、同じrunで連続修正しない。
+`::sdd_tdd <依頼>`は、期待動作と対象範囲が明確な依頼に限り、SpecからGateまでをphaseごとの確認なしで連続実行する。新規workflowで`docs/plans/`に同一依頼のdraft handoffが1件あれば、この起動が採用操作となり、`SESSION_BRIEF.md`はその計画から確定事項だけをPhase 1で自動更新する。候補がない場合は単独Specを行い、候補が複数または未決事項が残る場合は停止する。commit、push、mergeは行わない。仕様の曖昧さ、既存差分の混在、必要なtest証跡の不足、最終reviewの`WARNING` / `BLOCKER`、最終GATE/HOOKの`BLOCKER` / `FAIL`、security・外部公開・不可逆操作では停止する。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら情報として表示するだけで連続実行を止めない。失敗時は`failure-analysis.md`による分析までを自動化し、同じrunで連続修正しない。
 
 `::sdd_tdd --step <依頼>`は現在の1 Phaseだけを実行して停止する。通常の`::sdd_tdd <依頼>`はstate helperが`.git/agentskills/workflows/sdd_tdd.state`に記録した依頼本文、次Phase、開始時のstaged files、SESSION_BRIEF hashを確認し、同じ依頼本文と整合する未完了 state があれば自動再開する。stateがない、または前回 state が完了済みなら新規開始し、異なる依頼は停止する。旧kitが作成したrequest identityのない state は自動再開せず、表示される `discard-legacy` command で確認後にだけ破棄できる。
 
@@ -605,7 +606,7 @@ Claude / Codex 共通で使うため、正式な slash command ではなく、�
 - `gh pr view`、`gh pr checks`、`gh pr diff`を根拠にする
 - 親会話、実装意図、過去レビューを前提にしない
 - base/head、draft、mergeability、checks、findingsを表示する
-- `OK / WARNING / BLOCKER`とmerge推奨を返す
+- `OK / WARNING / BLOCKER`と、利用者が次に出す直接的な指示を返す。DRAFTは情報表示だけとし、`OK`ならDRAFTであっても次の指示は「マージしてください」とする
 - merge、push、PR comment、PR editは実行しない
 
 例:

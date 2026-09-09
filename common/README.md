@@ -138,6 +138,8 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 
 `::resolve`はレビュー指摘・不具合・確定した限定修正を扱い、期待動作・対象・非対象が明確なら、検証、review、明示的な対象pathのstage、gateまで連続実行します。新しい仕様書やタスクは作らず、`SESSION_BRIEF.md`も新規作成・更新しません。commit、push、mergeもしません。仕様の曖昧さ、既存差分の混在、検証不足、最終reviewの`WARNING` / `BLOCKER`、最終GATE/HOOKの`BLOCKER` / `FAIL`、security・外部公開・不可逆操作では停止します。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら表示のみです。`::sdd_tdd`は厳格な収束フローであり、Phase 1で採用仕様を`SESSION_BRIEF.md`へ保存してから、失敗テスト、実装、review、gateへ進みます。
 
+`::plan`は依頼本文を含む`SDD Handoff`付きの下書きを`docs/plans/`へ作ります。ユーザーが同じ依頼本文で`::sdd_tdd`を起動すると、該当する下書きが1件だけある場合はその起動が採用操作となります。`::sdd_tdd`は下書きの調査結果を読み、下書きで名指しされた証拠と作成後の変更だけを確認して`SESSION_BRIEF.md`へ確定仕様を移します。計画時の広い調査は繰り返しません。候補が複数、または未決事項・検証が曖昧な場合は停止します。該当する下書きがなければ従来どおり単独のSpecから始めます。
+
 `::sdd_tdd`は、期待動作・対象・非対象が明確な場合にSpecからGateまでを連続して実行します。commit、push、mergeはしません。仕様の曖昧さ、既存差分の混在、test証跡の不足、最終reviewの`WARNING` / `BLOCKER`、最終GATE/HOOKの`BLOCKER` / `FAIL`、security・外部公開・不可逆操作では停止し、失敗時は原因分析だけを行います。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら表示のみで連続実行を止めません。
 
 `::resolve --step` と `::sdd_tdd --step` は現在の1 Phaseだけを実行して停止します。通常コマンドは、同じ依頼本文と整合する未完了 state があれば記録済みの次Phaseから自動再開します。stateは `.git/agentskills/workflows/` に保存され、依頼本文、開始時のstaged files、`SESSION_BRIEF.md`のhashを確認します。stateがない、または前回 state が完了済みなら新規開始し、異なる依頼またはbriefが変更されている場合は停止します。旧kitが作成したrequest identityのない state は従来どおり表示される `discard-legacy` command で破棄できます。
@@ -146,7 +148,7 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 
 `::status`はworkflow・Git状態・直前publishのPRを読み取り専用で表示します。`::resume`は唯一の未完了workflowを保存済み依頼で再開し、`::abort`は唯一のworkflow stateだけを表示後にローカルarchiveへ退避します。`::handoff`は次回の目的・確認済み事項・未解決点・次の一手をWorking Memoryへ整理します。`::checkpoint <名前>`は差分・Git状態・brief・workflowを`.git/agentskills/checkpoints/`へ保存します。
 
-`::resolve`は条件・原因・期待動作が明確な修正に使います。どれかが不明なら、`::reproduce <不具合>`で再現条件と最小failing testを残してから`::resolve`へ進みます。`::inspect <対象>`は修正せずに原因候補・影響範囲を調べる操作です。`::plan <依頼>`は`docs/plans/`に下書きを作るだけで、外部タスクや実装は開始しません。
+`::resolve`は条件・原因・期待動作が明確な修正に使います。どれかが不明なら、`::reproduce <不具合>`で再現条件と最小failing testを残してから`::resolve`へ進みます。`::inspect <対象>`は修正せずに原因候補・影響範囲を調べる操作です。`::plan <依頼>`は`docs/plans/`に`SDD Handoff`付きの下書きを作るだけで、外部タスクや実装は開始しません。同一依頼での後続`::sdd_tdd`がその下書きを採用します。
 
 `::verify <対象>`は変更後の動作・品質を確認するためにtest・lint・typecheck・buildを実行します。`::scope`はcommitやPRの前に、BriefとGit差分を照合して対象外・混在・未stageの変更を検出します。つまりverifyは「動作が正しいか」、scopeは「変更範囲が正しいか」です。`::checkpoint`は比較用の節目を保存し、`::handoff`は次回や別担当が再開できるように現在地と次の一手を整理します。
 
@@ -158,7 +160,7 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 
 `::ask <質問>`は回答専用です。答えに必要なファイル、Git状態、ログ、設定、公式情報は読み取れますが、実装、計画作成、タスク化、設定変更、Git操作、外部サービスへの変更は行いません。
 
-通常フローは、未確定の新機能なら`::plan`→採用→`::sdd_tdd`→`::scope`→`::publish`→`::pr-review`です。明確な不具合・レビュー指摘なら`::resolve`から始め、条件や原因が不明なら`::inspect`または`::reproduce`で証拠を固めてから`::resolve`へ進みます。作業を中断する前に`::checkpoint`または`::handoff`を使い、次回は`::status`→`::resume`で再開します。
+通常フローは、未確定の新機能なら`::plan`→（同一依頼で`::sdd_tdd`を起動して採用）→`::scope`→`::publish`→`::pr-review`です。明確な不具合・レビュー指摘なら`::resolve`から始め、条件や原因が不明なら`::inspect`または`::reproduce`で証拠を固めてから`::resolve`へ進みます。作業を中断する前に`::checkpoint`または`::handoff`を使い、次回は`::status`→`::resume`で再開します。
 
 `::ui-mock`は`docs/ui-mocks/<slug>.html`に静的HTMLのUI仕様モックを作ります。`::test-plan`は利用可能で実行可能な`test-orchestrator`の計画フェーズを優先し、使えないCodex環境では同じ受け入れ条件とテスト計画を`docs/test-plans/<slug>.md`へ直接作成します。両方ともExpansion用の下書きであり、採用後に`::sdd_tdd`へ渡します。
 
