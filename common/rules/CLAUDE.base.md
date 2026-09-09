@@ -5,8 +5,9 @@ The project-root `AGENTS.md` is the source of truth for common agent behavior. R
 In Convergence mode:
 
 1. Read the project-root `SESSION_BRIEF.md`.
-2. Read the matching file under `.agentskills/prompts/` (or `common/prompts/` in the AgentSkills repository).
-3. Display the rule, brief, prompt, mode, and phase actually used.
+2. Read project-root `REVIEW_LESSONS.md` when present and use only target-relevant entries.
+3. Read the matching file under `.agentskills/prompts/` (or `common/prompts/` in the AgentSkills repository).
+4. Display the rule, brief, prompt, mode, and phase actually used.
 
 For `::ui-mock` and `::test-plan`, use Expansion mode and read the matching prompt. For `::test-plan`, use the installed `test-orchestrator` skill only for its planning phase when executable; otherwise use the Codex-compatible fallback in the prompt. Do not run its test execution phases.
 

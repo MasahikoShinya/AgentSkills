@@ -21,7 +21,7 @@ rules、prompts、brief、script、subagentはTriggerではなく、Triggerか�
 |---|---|
 | `rules/` | プロジェクトの`AGENTS.md`／`CLAUDE.md`へ統合する基本ルール |
 | `prompts/` | 収束、review、failure analysisの定型手順 |
-| `briefs/` | SESSION_BRIEF／WORKING_MEMORYテンプレート |
+| `briefs/` | SESSION_BRIEF／WORKING_MEMORY／REVIEW_LESSONSテンプレート |
 | `config/` | 任意のモデル設定テンプレート |
 | `gates/` | 機密、サイズ、空白、diff、LLM reviewの検査 |
 | `lib/` | staged path解析、リスク判定、SHA-256、review cacheの共通処理 |
@@ -42,7 +42,7 @@ cd /path/to/AgentSkills
 bash common/setup/deploy.sh --claude --models /path/to/target-project
 ```
 
-この1回の実行で、`.agentskills`へのsymlink、`AGENTS.md`の管理ブロック、`CLAUDE.md`の管理ブロック、未作成の`SESSION_BRIEF.md`、ローカル専用の`.agents/WORKING_MEMORY.md`、未作成の`AGENT_MODELS.md`を用意します。`WORKING_MEMORY.md`は`.git/info/exclude`へ登録されるため、Gitの差分・レビュー・commit対象にはなりません。Git Hookは任意導入のため、必要な場合だけ追加します。
+この1回の実行で、`.agentskills`へのsymlink、`AGENTS.md`の管理ブロック、`CLAUDE.md`の管理ブロック、未作成の`SESSION_BRIEF.md`、ローカル専用の`.agents/WORKING_MEMORY.md`、未作成の`REVIEW_LESSONS.md`、未作成の`AGENT_MODELS.md`を用意します。`WORKING_MEMORY.md`は`.git/info/exclude`へ登録されるため、Gitの差分・レビュー・commit対象にはなりません。Git Hookは任意導入のため、必要な場合だけ追加します。
 
 ```bash
 bash common/setup/deploy.sh --claude --models --install-hooks /path/to/target-project
@@ -69,6 +69,7 @@ ln -s /path/to/AgentSkills/common .agentskills
 AGENTS.md
 CLAUDE.md
 SESSION_BRIEF.md
+REVIEW_LESSONS.md
 AGENT_MODELS.md
 ```
 
@@ -92,7 +93,13 @@ printf '\n/.agents/WORKING_MEMORY.md\n' >> .git/info/exclude
 cp .agentskills/briefs/SESSION_BRIEF.template.md SESSION_BRIEF.md
 ```
 
-5. 必要ならモデル設定を作成します。
+5. 再発防止ルールの索引を作成します。
+
+```bash
+cp .agentskills/briefs/REVIEW_LESSONS.template.md REVIEW_LESSONS.md
+```
+
+6. 必要ならモデル設定を作成します。
 
 ```bash
 cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
@@ -161,6 +168,8 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 `::ask <質問>`は回答専用です。答えに必要なファイル、Git状態、ログ、設定、公式情報は読み取れますが、実装、計画作成、タスク化、設定変更、Git操作、外部サービスへの変更は行いません。
 
 通常フローは、未確定の新機能なら`::plan`→（同一依頼で`::sdd_tdd`を起動して採用）→`::scope`→`::publish`→`::pr-review`です。明確な不具合・レビュー指摘なら`::resolve`から始め、条件や原因が不明なら`::inspect`または`::reproduce`で証拠を固めてから`::resolve`へ進みます。作業を中断する前に`::checkpoint`または`::handoff`を使い、次回は`::status`→`::resume`で再開します。
+
+`::resolve`は、関連テスト後に再発防止を一度だけ分類し、`[AgentSkills][PREVENTION]`を表示します。`REVIEW_LESSONS.md`へ残すのは、テスト、ルール、workflow guardだけでは意図が分からない再利用可能な防止策に限ります。これはレビュー履歴ではありません。`::resolve`と`::sdd_tdd`は開始時に対象と関係する lessons だけを参照します。
 
 `::ui-mock`は`docs/ui-mocks/<slug>.html`に静的HTMLのUI仕様モックを作ります。`::test-plan`は利用可能で実行可能な`test-orchestrator`の計画フェーズを優先し、使えないCodex環境では同じ受け入れ条件とテスト計画を`docs/test-plans/<slug>.md`へ直接作成します。両方ともExpansion用の下書きであり、採用後に`::sdd_tdd`へ渡します。
 

@@ -168,6 +168,14 @@ else
   echo "Action: Fill only confirmed scope and verification before Convergence work."
 fi
 
+if [[ -e "$TARGET_ROOT/REVIEW_LESSONS.md" ]]; then
+  echo "[AgentSkills][DEPLOY][SKIP] REVIEW_LESSONS.md already exists"
+else
+  cp "$KIT_ROOT/briefs/REVIEW_LESSONS.template.md" "$TARGET_ROOT/REVIEW_LESSONS.md"
+  echo "[AgentSkills][DEPLOY][PASS] REVIEW_LESSONS.md created"
+  echo "Action: Keep only reusable prevention rules linked to tests, rules, or workflow guards."
+fi
+
 working_memory_dir="$TARGET_ROOT/.agents"
 working_memory_path="$working_memory_dir/WORKING_MEMORY.md"
 if [[ -e "$working_memory_path" ]]; then
