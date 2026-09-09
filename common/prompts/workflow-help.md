@@ -20,7 +20,7 @@ Display the following compact help exactly enough to identify each entry point. 
   ::inspect <対象>              修正せず、コード・設定・テスト・ログを根拠付きで調査
   ::reproduce <不具合>          修正せず、再現条件とfailing testを証拠として作る
   ::verify <対象>               対象に適したtest・lint・buildを実行。変更しない
-  ::plan <依頼>                 実装せず、仕様・方針・リスク・検証をdocs/plans/へ下書き
+  ::plan <依頼>                 実装せず、SDD handoff付きの仕様・方針・リスク・検証をdocs/plans/へ下書き
   ::scope                       BriefとGit差分を照合し、対象外・混在変更を検出
   ::checkpoint <名前>           Git状態・差分・workflowをローカルにスナップショット
   ::publish                     commit、push、draft PR作成を一括実行。mergeしない
@@ -70,7 +70,7 @@ Codexセッション内でSELF-REVIEWがなければ、子Codexを起動せず�
   Codex通知音を確認・変更する        → ::sound（試聴。名前指定で変更、--listで一覧）
 
 通常フロー:
-  新機能・設計が未確定       → ::plan → （採用）→ ::sdd_tdd → ::scope → ::publish → ::pr-review
+  新機能・設計が未確定       → ::plan → （同一依頼で::sdd_tddを起動して採用）→ ::scope → ::publish → ::pr-review
   明確な不具合・レビュー指摘 → ::resolve → ::scope → ::publish → ::pr-review
   条件や原因が不明な不具合   → ::inspect / ::reproduce → ::resolve → ::scope → ::publish
   作業を中断・再開する       → ::checkpoint / ::handoff → ::status → ::resume

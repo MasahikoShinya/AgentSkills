@@ -780,7 +780,7 @@ test_additional_workflow_commands() {
 }
 
 test_workflow_command_routes() {
-  local rules help readme resolve_prompt sdd_prompt test_plan_prompt route command prompt expected command_syntax
+  local rules help readme resolve_prompt sdd_prompt plan_prompt test_plan_prompt pr_review_prompt route command prompt expected command_syntax
   rules="$(cat "$SOURCE_COMMON/rules/AGENTS.base.md")"
   help="$(cat "$SOURCE_COMMON/prompts/workflow-help.md")"
   readme="$(cat "$SOURCE_COMMON/README.md")"
@@ -820,9 +820,21 @@ test_workflow_command_routes() {
   assert_contains "$help" '::publish --loop' "help explains publish review loop"
   assert_contains "$readme" '`::ask <質問>`は回答専用です。' "README documents ask command"
   assert_contains "$help" '条件・原因・期待動作が明確な修正  → ::resolve' "help explains reproduce and resolve selection"
-  assert_contains "$help" '新機能・設計が未確定       → ::plan → （採用）→ ::sdd_tdd' "help defines the standard feature workflow"
+  assert_contains "$help" '新機能・設計が未確定       → ::plan → （同一依頼で::sdd_tddを起動して採用）' "help defines the plan adoption workflow"
   assert_contains "$readme" 'verifyは「動作が正しいか」、scopeは「変更範囲が正しいか」' "README distinguishes verify and scope"
   sdd_prompt="$(cat "$SOURCE_COMMON/prompts/sdd_tdd.md")"
+  plan_prompt="$(cat "$SOURCE_COMMON/prompts/plan.md")"
+  assert_contains "$plan_prompt" '## SDD Handoff' "plan emits an SDD handoff block"
+  assert_contains "$plan_prompt" '- Request: `<the exact ::plan request>`' "plan records the exact handoff request"
+  assert_contains "$plan_prompt" 'A later `::sdd_tdd <the exact request>` is that adoption signal' "plan defines SDD invocation as adoption"
+  assert_contains "$sdd_prompt" 'search `docs/plans/` for a `## SDD Handoff` block whose `Request` exactly matches' "SDD searches for an exact matching plan handoff"
+  assert_contains "$sdd_prompt" 'If exactly one matching draft exists' "SDD accepts one matching plan handoff"
+  assert_contains "$sdd_prompt" 'If more than one matching draft exists' "SDD blocks ambiguous plan handoffs"
+  assert_contains "$sdd_prompt" 'Only then change its handoff fields to `Status: adopted`' "SDD marks a plan adopted only after validation"
+  assert_contains "$sdd_prompt" 'do not repeat its broad repository survey' "SDD avoids repeating adopted plan discovery"
+  assert_contains "$sdd_prompt" 'record its path' "SDD records adopted plan provenance in the brief"
+  assert_contains "$rules" 'exactly one draft `docs/plans/` handoff' "rules require one matching plan handoff"
+  assert_contains "$readme" '計画時の広い調査は繰り返しません。' "README documents plan-to-SDD reuse"
   assert_contains "$sdd_prompt" 'required SDD specification artifact' "SDD and TDD command records its specification artifact"
   assert_contains "$sdd_prompt" 'Do not implement without the required SDD specification artifact and test evidence.' "SDD and TDD command requires test evidence before implementation"
   assert_contains "$sdd_prompt" '`::sdd_tdd <request>` is the default continuous mode' "SDD and TDD command defaults to continuous mode"
@@ -837,6 +849,10 @@ test_workflow_command_routes() {
   assert_contains "$test_plan_prompt" 'Codex-compatible fallback' "test-plan defines the Codex fallback"
   assert_contains "$test_plan_prompt" 'instead of reporting `PROMPT BLOCKER`' "test-plan does not block Codex when the planner is unavailable"
   assert_contains "$rules" 'otherwise use the Codex-compatible fallback' "rules route unavailable planner work to the Codex fallback"
+  pr_review_prompt="$(cat "$SOURCE_COMMON/prompts/pr-review.md")"
+  assert_contains "$pr_review_prompt" 'Next instruction: 「マージしてください」' "PR review gives a direct merge instruction after OK"
+  assert_contains "$pr_review_prompt" 'A DRAFT status is informational only' "PR review keeps DRAFT out of the decision"
+  assert_not_contains "$pr_review_prompt" 'not draft, mergeable' "PR review does not block an OK instruction because of DRAFT"
   if [[ "$rules" == *'converge-bugfix'* ]]; then
     fail "rules no longer expose the previous convergence command"
   else
