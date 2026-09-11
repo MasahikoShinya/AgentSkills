@@ -8,39 +8,32 @@ Convergence
 
 ## Purpose
 
-Add the `::resolve`, `::ui-mock`, and `::test-plan` pseudo-commands, make `::sdd_tdd` a strict SDD + TDD workflow, make LLM review failures diagnosable, and eliminate duplicate broad planning between `::plan` and `::sdd_tdd`.
+Accept concise Japanese continuation instructions for `::sdd_tdd` and a bare `::publish` invocation without adding redundant wording or weakening workflow safety.
 
 ## Confirmed Specification
 
-- `::resolve` handles a bounded review finding, regression, or confirmed defect without creating a task or new specification artifact.
-- `::sdd_tdd` writes an adopted specification to `SESSION_BRIEF.md`, obtains failing-test or reproduction evidence, then proceeds through implementation, review, and gate.
-- A `::plan` draft includes an exact-request `SDD Handoff`; a later `::sdd_tdd` invocation with that request adopts exactly one matching draft, validates only its named evidence and subsequent changes, and transfers confirmed decisions to `SESSION_BRIEF.md` without repeating the broad survey.
-- No matching draft uses standalone SDD Spec; multiple matching drafts or unresolved plan decisions block SDD before tests begin.
-- `::ui-mock` is an Expansion command that writes only a static UI draft to `docs/ui-mocks/<slug>.html`.
-- `::test-plan` is an Expansion command that uses the installed `test-orchestrator` skill in planning-only mode and writes a draft to `docs/test-plans/<slug>.md`.
-- `::test-plan` uses the Codex-compatible fallback when the required skill is unavailable.
-- `::pr-review` treats DRAFT as informational only. When the review result is `OK`, it tells the user `Next instruction: 「マージしてください」`.
-- `::converge-bugfix` is not retained as a compatibility alias.
-- Each non-cached Codex staged-diff review records a persistent run-state file and stdout/stderr log under its local `.git/agentskills/reviews/` context directory.
-- Review start and failure output show the run-state and log paths. Invalid JSON also preserves the returned result file.
-- `agentskills.reviewPolicy=auto` accepts an `OK` `codex-self-review` cache produced by `::resolve` or `::sdd_tdd`; `independent` requires an external reviewer and ignores self-review caches.
-- When running inside a Codex session without a usable cache, the gate blocks immediately rather than starting a nested `codex exec`.
-- `deploy.sh` validates requested loader files before creating `.agentskills`; a blocked loader preflight leaves no deployment artifact.
+- Treat `進めて`, `進めてください`, `続けて`, `続けてください`, `続行`, and `再開` as equivalent `::sdd_tdd` continuation instructions after trimming whitespace and terminal punctuation.
+- Never ask users to add polite Japanese wording.
+- Resume an unfinished `sdd_tdd` workflow when exactly one exists; otherwise adopt exactly one applicable draft SDD handoff using its stored request.
+- Ask for a concrete target only when those sources are absent or ambiguous; never use the shorthand itself as a new request identity.
+- Preserve exact request matching after a canonical request has been selected.
+- Treat both `::publish` and `::publish --loop` as complete requests to commit, push, and create or reuse a Draft PR after scope, verification, review, and gate evidence is confirmed.
+- Do not demand additional phrasing such as `実行してください`, `実行して`, or `進めて` for either publish form.
 
 ## Current Problem
 
-The workflow needs distinct entry points for rapid bounded resolution, strict SDD + TDD, UI specification exploration, and test-planning exploration. LLM reviewer failures currently discard their child-process log, making a missing terminal status difficult to diagnose.
+The workflow can treat short Japanese continuation instructions as a new request and can demand redundant execution wording after a bare `::publish`, rather than recognizing the pseudo-command as the user's intent.
 
 ## Targets
 
-- Common rules, prompts, workflow-help prompt, and deployment setup
-- Common README and synchronized design documents
-- Reviewer and gate diagnostics, regression tests, and this brief
+- `common/prompts/sdd_tdd.md` and `common/prompts/publish.md`
+- `common/prompts/workflow-help.md` and `common/workflows/workflow-state.sh`
+- `common/rules/AGENTS.base.md` and `common/rules/CLAUDE.base.md`
+- `common/README.md`, `common/docs/design.md`, regression tests, and this brief
 
 ## Non-Targets
 
-- Untracked `.claude/` local files
-- Existing skill implementations, the `EXECUTED` marker contract, and unrelated functional behavior
+- Other pseudo-command behavior and unrelated functional changes
 
 ## Prohibitions
 
@@ -50,12 +43,9 @@ The workflow needs distinct entry points for rapid bounded resolution, strict SD
 
 ## Verification
 
-- Confirm all four commands map to their intended prompts in the common rules.
-- Confirm `::sdd_tdd` requires the brief specification and failing-test evidence.
-- Confirm `::plan` emits the SDD handoff contract and `::sdd_tdd` consumes exactly one matching draft without broad replanning.
-- Confirm `::test-plan` requires the installed `test-orchestrator` skill.
-- Confirm reviewer failure output exposes persistent diagnostics.
-- Confirm auto and independent review policies handle self-review caches as specified.
+- Confirm the SDD prompt treats short and polite Japanese continuation phrases as equivalent.
+- Confirm ambiguous shorthand remains blocked and canonical request matching remains required.
+- Confirm bare `::publish` is accepted without an execution phrase.
 - `bash common/tests/run-tests.sh`
 - `git diff --check`
 - Diff review confirms only the target files changed.

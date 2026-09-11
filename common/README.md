@@ -151,6 +151,8 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 
 `::resolve --step` と `::sdd_tdd --step` は現在の1 Phaseだけを実行して停止します。通常コマンドは、同じ依頼本文と整合する未完了 state があれば記録済みの次Phaseから自動再開します。stateは `.git/agentskills/workflows/` に保存され、依頼本文、開始時のstaged files、`SESSION_BRIEF.md`のhashを確認します。stateがない、または前回 state が完了済みなら新規開始し、異なる依頼またはbriefが変更されている場合は停止します。旧kitが作成したrequest identityのない state は従来どおり表示される `discard-legacy` command で破棄できます。
 
+`::sdd_tdd 進めて`、`::sdd_tdd 進めてください`、`::sdd_tdd 続けて`、`::sdd_tdd 続行`、`::sdd_tdd 再開`は同じ継続指示です。未完了の`::sdd_tdd`が1件なら保存済みの依頼で再開し、なければ該当するDraft handoffが1件だけある場合にその依頼を採用します。対象が一意でない場合だけ、進める具体的な依頼を確認します。
+
 異なる依頼の未完了`resolve` stateを明示的に破棄するには、依頼文を付けずに `::resolve --reset` を使います。実行前にworkflow、保存済みのrequest identity、next phase、記録日時、開始時のstage対象、state pathを表示し、`resolve.state`と`resolve.initial-staged`だけを`.git/agentskills/workflows/archive/resolve-<timestamp>.*`へ退避します。ソース、作業ツリー、stage、commit、branch、PR、Git設定は変更しません。stateがない場合、`--step`との併用、または依頼文を付けた呼び出しは`BLOCKER`です。
 
 `::status`はworkflow・Git状態・直前publishのPRを読み取り専用で表示します。`::resume`は唯一の未完了workflowを保存済み依頼で再開し、`::abort`は唯一のworkflow stateだけを表示後にローカルarchiveへ退避します。`::handoff`は次回の目的・確認済み事項・未解決点・次の一手をWorking Memoryへ整理します。`::checkpoint <名前>`は差分・Git状態・brief・workflowを`.git/agentskills/checkpoints/`へ保存します。
@@ -159,9 +161,9 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 
 `::verify <対象>`は変更後の動作・品質を確認するためにtest・lint・typecheck・buildを実行します。`::scope`はcommitやPRの前に、BriefとGit差分を照合して対象外・混在・未stageの変更を検出します。つまりverifyは「動作が正しいか」、scopeは「変更範囲が正しいか」です。`::checkpoint`は比較用の節目を保存し、`::handoff`は次回や別担当が再開できるように現在地と次の一手を整理します。
 
-`::publish`は、scope・検証・review・gateの証拠を確認してから、対象path、commit message、push先、draft PRタイトルを表示し、commit、push、draft PR作成を一括実行します。`::publish`の呼び出し自体がこの操作の許可であり、会話での再確認は求めません。既存の同一ブランチPRがあれば再利用し、mergeはしません。作成または再利用したPRはローカル記録されるため、引数なしの`::pr-review`はそのPRを最優先で選びます。
+`::publish`は、scope・検証・review・gateの証拠を確認してから、対象path、commit message、push先、draft PRタイトルを表示し、commit、push、draft PR作成を一括実行します。`::publish`単体が完結した起動と許可です。`実行してください`、`実行して`、`進めて`などの追加文言を要求せず、会話での再確認も求めません。既存の同一ブランチPRがあれば再利用し、mergeはしません。作成または再利用したPRはローカル記録されるため、引数なしの`::pr-review`はそのPRを最優先で選びます。
 
-`::publish --loop`は、公開後にPR reviewを実行し、根拠が明確で限定された指摘だけを`::resolve`で修正して、同じPRへ再公開・再reviewします。PR reviewが`OK`になるまで、最大3回の修正サイクルを連続実行します。曖昧・対象外・高リスク・繰り返し・新規の無関係な指摘、またはcheck・検証・review・gateの失敗では停止します。merge、draft解除、PRコメント、同一ブランチの2本目のPR作成は行いません。
+`::publish --loop`単体も完結した起動です。公開後にPR reviewを実行し、根拠が明確で限定された指摘だけを`::resolve`で修正して、同じPRへ再公開・再reviewします。PR reviewが`OK`になるまで、最大3回の修正サイクルを連続実行します。曖昧・対象外・高リスク・繰り返し・新規の無関係な指摘、またはcheck・検証・review・gateの失敗では停止します。merge、draft解除、PRコメント、同一ブランチの2本目のPR作成は行いません。
 
 `::sound`はWindows標準WAVを名前順に試聴します。`::sound --list`は一覧だけを表示し、`::sound Ring02`はグローバルなCodex通知音を変更します。従来の`::sound --set Ring02`も使えます。リポジトリやGit状態は変更しません。
 

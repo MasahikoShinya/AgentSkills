@@ -148,6 +148,16 @@ decode_request() {
   fi
 }
 
+is_sdd_continuation_shorthand() {
+  local value="$1"
+  [[ "$workflow" == "sdd_tdd" ]] || return 1
+  value="$(printf '%s' "$value" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[。！？!?]*$//')"
+  case "$value" in
+    進めて|進めてください|続けて|続けてください|続行|再開) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 state_value() {
   local key="$1"
   awk -F= -v key="$key" '$1 == key { print substr($0, length(key) + 2); exit }' "$STATE_FILE"
@@ -171,15 +181,25 @@ validate_resumable_phase() {
 }
 
 validate_request_match() {
-  local stored_request_hash current_request_hash
+  local stored_request_hash current_request_hash stored_request_b64 stored_request
   stored_request_hash="$(state_value request_hash)"
   current_request_hash="$(hash_text "$request")"
-  if [[ -z "$stored_request_hash" || "$stored_request_hash" != "$current_request_hash" ]]; then
-    echo "[AgentSkills][WORKFLOW-STATE][BLOCKER] Workflow state does not match the requested work" >&2
-    echo "Reason: An unfinished workflow can resume only with its original request text." >&2
-    echo "Resolution: Continue the active request, or resolve its state before starting different work." >&2
-    exit 1
+  if [[ -n "$stored_request_hash" && "$stored_request_hash" == "$current_request_hash" ]]; then
+    return 0
   fi
+
+  stored_request_b64="$(state_value request_b64)"
+  stored_request=""
+  [[ -n "$stored_request_b64" ]] && stored_request="$(decode_request "$stored_request_b64")"
+  if is_sdd_continuation_shorthand "$request" && is_sdd_continuation_shorthand "$stored_request"; then
+    echo "[AgentSkills][WORKFLOW-STATE][INFO] Matched Japanese continuation shorthand"
+    return 0
+  fi
+
+  echo "[AgentSkills][WORKFLOW-STATE][BLOCKER] Workflow state does not match the requested work" >&2
+  echo "Reason: An unfinished workflow can resume only with its original request text." >&2
+  echo "Resolution: Continue the active request, or resolve its state before starting different work." >&2
+  exit 1
 }
 
 legacy_state_resolution() {

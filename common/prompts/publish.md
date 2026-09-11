@@ -9,6 +9,8 @@ Accepted forms:
 ::publish --loop
 ```
 
+Both `::publish` and `::publish --loop` are complete invocations. Do not require, suggest, or wait for added wording such as `実行してください`, `実行して`, or `進めて`; those words do not change the requested operation or its authorization.
+
 First run `::scope` procedure and inspect Git status, staged and unstaged diffs, applicable `SESSION_BRIEF.md`, workflow state, review, and final gate evidence. Stop with `PROMPT BLOCKER` if the scope is mixed, required verification/review/gate evidence is missing or failing, an unfinished workflow exists, or candidate paths are not explicit. Never stage unrelated paths and never use `git add .`, `git add -A`, or unrestricted `git add -u`.
 
 Before any external write, display the exact paths to stage, commit message, destination branch, remote, and draft PR title. The original `::publish` invocation authorizes this publish operation; do not request a second conversational confirmation. Stage only the displayed paths, re-check the staged diff, commit, and push the current branch. If an open PR for the current branch already exists (prefer the PR recorded by `publish-state.sh`), reuse it; do not create a second PR. Otherwise create a draft PR with `gh pr create --draft` and record its number and URL with `bash .agentskills/workflows/publish-state.sh record <number> <url>`. Report the commit SHA, PR URL, and recorded PR number. Never merge or convert the draft PR to ready for review.

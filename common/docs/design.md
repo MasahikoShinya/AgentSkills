@@ -495,7 +495,7 @@ Claude / Codex 共通で使うため、正式な slash command ではなく、�
 
 `::resolve --reset`は依頼文を受け付けず、`--step`とも併用できない専用操作である。実行前に状態のworkflow、保存済みrequest identity、next phase、記録日時、開始時のstage対象、state pathを表示する。`resolve.state`と`resolve.initial-staged`のみを`.git/agentskills/workflows/archive/resolve-<timestamp>.*`へ退避してからstateを破棄する。ソース、worktree、stage、commit、branch、PR、Git設定は変更しない。stateがない場合は`BLOCKER`とする。`discard-legacy`は後方互換性のため維持する。
 
-通常の調査・継続・公開には次を使う。`::status`は状態を表示し、`::resume`は唯一の識別済み未完了workflowを保存済み依頼から再開する。`::abort`は唯一のworkflow stateをarchiveして中断する。`::handoff`はWorking Memoryを更新し、`::checkpoint`はローカルの状態スナップショットを作る。`::inspect`は変更しない調査、`::reproduce`は本番コードを変更せずfailing testを残す再現、`::verify`は変更しない検証、`::scope`は差分の対象範囲確認、`::plan`は実装前の`SDD Handoff`付き下書きである。同一依頼の`::sdd_tdd`起動がその下書きを採用し、Phase 1の入力にする。`::publish`は明示確認後だけcommit、push、draft PR作成を実行し、PR番号を記録する。引数なしの`::pr-review`は記録済みの直前publish PRを最優先し、なければ現在ブランチ、最後に自分の最新Open PRを選ぶ。
+通常の調査・継続・公開には次を使う。`::status`は状態を表示し、`::resume`は唯一の識別済み未完了workflowを保存済み依頼から再開する。`::abort`は唯一のworkflow stateをarchiveして中断する。`::handoff`はWorking Memoryを更新し、`::checkpoint`はローカルの状態スナップショットを作る。`::inspect`は変更しない調査、`::reproduce`は本番コードを変更せずfailing testを残す再現、`::verify`は変更しない検証、`::scope`は差分の対象範囲確認、`::plan`は実装前の`SDD Handoff`付き下書きである。同一依頼の`::sdd_tdd`起動がその下書きを採用し、Phase 1の入力にする。`::publish`単体がcommit、push、draft PR作成の許可であり、追加の実行文言や会話上の再確認は要求しない。PR番号をローカル記録し、引数なしの`::pr-review`は記録済みの直前publish PRを最優先し、なければ現在ブランチ、最後に自分の最新Open PRを選ぶ。
 
 関連verificationの成功後、`::resolve`は再発防止を`regression-test`、`brief`、`rule`、`workflow-test`、`none`のいずれかへ一度だけ分類して`[AgentSkills][PREVENTION]`を表示する。`REVIEW_LESSONS.md`へ残すのは、既存のtest、rule、workflow guardだけでは意図が分からない再利用可能な防止策だけであり、レビュー履歴や却下案は保存しない。各項目は適用範囲、防止策、検証方法、利用できる場合は指摘IDを持つ。
 

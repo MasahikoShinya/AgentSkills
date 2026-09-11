@@ -23,8 +23,8 @@ Display the following compact help exactly enough to identify each entry point. 
   ::plan <依頼>                 実装せず、SDD handoff付きの仕様・方針・リスク・検証をdocs/plans/へ下書き
   ::scope                       BriefとGit差分を照合し、対象外・混在変更を検出
   ::checkpoint <名前>           Git状態・差分・workflowをローカルにスナップショット
-  ::publish                     commit、push、draft PR作成を一括実行。mergeしない
-  ::publish --loop              PR reviewがOKになるまで、最大3回の修正・再公開・再review
+  ::publish                     単体でcommit、push、draft PR作成を一括実行。追加文言は不要。mergeしない
+  ::publish --loop              単体でPR reviewがOKになるまで、最大3回の修正・再公開・再review
   ::sound [名前|--list]         省略=全音を順に試聴。名前=通知音変更、--list=一覧
   ::sdd_tdd <依頼>              SESSION_BRIEF仕様 -> 失敗テスト -> 実装 -> レビュー -> ゲート
   ::sdd_tdd --step <依頼>       sdd_tddを1 Phaseだけ実行して停止
