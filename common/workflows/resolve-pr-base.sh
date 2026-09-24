@@ -16,25 +16,16 @@ if [[ -z "$branch" ]]; then
   exit 1
 fi
 
-configured_base="$(git config --get "branch.${branch}.agentskills-pr-base" || true)"
-if [[ -n "$configured_base" ]]; then
-  printf '%s\n' "$configured_base"
-  exit 0
-fi
-
 case "$branch" in
-  develop)
-    printf '%s\n' 'main'
-    ;;
   feature/*|fix/*|hotfix/*|chore/*|docs/*|refactor/*)
     printf '%s\n' 'develop'
     ;;
-  main)
-    echo "[AgentSkills][PUBLISH][BLOCKER] Publish from main is not allowed; create a release PR from develop instead" >&2
+  develop|main)
+    echo "[AgentSkills][PUBLISH][BLOCKER] Publish from '$branch' is not allowed; create a work branch and target develop" >&2
     exit 1
     ;;
   *)
-    echo "[AgentSkills][PUBLISH][BLOCKER] No PR base is defined for branch '$branch'. Use a recognized work-branch prefix or set branch.${branch}.agentskills-pr-base" >&2
+    echo "[AgentSkills][PUBLISH][BLOCKER] No PR base is defined for branch '$branch'. Use a recognized work-branch prefix that targets develop" >&2
     exit 1
     ;;
 esac
