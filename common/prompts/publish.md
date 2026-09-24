@@ -11,7 +11,14 @@ Accepted forms:
 
 First run `::scope` procedure and inspect Git status, staged and unstaged diffs, applicable `SESSION_BRIEF.md`, workflow state, review, and final gate evidence. Stop with `PROMPT BLOCKER` if the scope is mixed, required verification/review/gate evidence is missing or failing, an unfinished workflow exists, or candidate paths are not explicit. Never stage unrelated paths and never use `git add .`, `git add -A`, or unrestricted `git add -u`.
 
-Before any external write, display the exact paths to stage, commit message, destination branch, remote, and draft PR title. The original `::publish` invocation authorizes this publish operation; do not request a second conversational confirmation. Stage only the displayed paths, re-check the staged diff, commit, and push the current branch. If an open PR for the current branch already exists (prefer the PR recorded by `publish-state.sh`), reuse it; do not create a second PR. Otherwise create a draft PR with `gh pr create --draft` and record its number and URL with `bash .agentskills/workflows/publish-state.sh record <number> <url>`. Report the commit SHA, PR URL, and recorded PR number. Never merge or convert the draft PR to ready for review.
+Before any external write, resolve the PR base with `bash .agentskills/workflows/resolve-pr-base.sh`. Its output is the required base branch. The default policy is:
+
+- `feature/*`, `fix/*`, `hotfix/*`, `chore/*`, `docs/*`, and `refactor/*` target `develop`.
+- `develop` targets `main`.
+- `main` and unknown branch names are blocked rather than relying on GitHub's default branch.
+- A repository-local override may be set with `git config branch.<branch>.agentskills-pr-base <base>` when an exceptional base branch is deliberate.
+
+Before any external write, display the exact paths to stage, commit message, source branch, resolved base branch, remote, and draft PR title. The original `::publish` invocation authorizes this publish operation; do not request a second conversational confirmation. Stage only the displayed paths, re-check the staged diff, commit, and push the current branch. If an open PR for the current branch already exists (prefer the PR recorded by `publish-state.sh`), confirm that its base branch equals the resolved base; stop with `PROMPT BLOCKER` when it differs. Otherwise create a draft PR with `gh pr create --draft --base "$base_branch"` and record its number and URL with `bash .agentskills/workflows/publish-state.sh record <number> <url>`. Report the commit SHA, PR URL, resolved base branch, and recorded PR number. Never merge or convert the draft PR to ready for review.
 
 `::publish` ends after that one publish operation. `::publish --loop` continues as follows:
 
