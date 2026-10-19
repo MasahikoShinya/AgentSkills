@@ -22,3 +22,5 @@ Report:
 7. Whether user permission is required before proceeding.
 
 After the analysis, report `PROMPT END` with `Execution: completed` and the most likely cause. If the failure evidence is unavailable, report `PROMPT BLOCKER` with the missing command output instead of `PROMPT END`.
+
+When called by a continuous parent workflow, return the analysis to that workflow. Its existing authorization covers the evidence-backed correction within the confirmed scope; the parent may continue under its recovery limits without another permission request. A standalone `::failure-analysis` remains analysis-only.

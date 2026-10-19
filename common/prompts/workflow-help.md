@@ -24,8 +24,8 @@ Display the following compact help exactly enough to identify each entry point. 
   ::scope                       BriefとGit差分を照合し、対象外・混在変更を検出
   ::checkpoint <名前>           Git状態・差分・workflowをローカルにスナップショット
   ::publish                     commit、push、draft PR作成を一括実行。mergeしない
-  ::publish --loop              PR reviewがOKになるまで、最大3回の修正・再公開・再review
-  ::sound [名前|--list]         省略=全音を順に試聴。名前=通知音変更、--list=一覧
+  ::publish --loop              PR reviewがOKになるまで、完了まで修正・再公開・再review
+  ::sound [名前|--list|--play 名前]  Mac/Windowsの標準音。--play=個別試聴、名前=変更
   ::sdd_tdd <依頼>              SESSION_BRIEF仕様 -> 失敗テスト -> 実装 -> レビュー -> ゲート
   ::sdd_tdd --step <依頼>       sdd_tddを1 Phaseだけ実行して停止
   ::ui-mock       静的HTMLのUIモックを docs/ui-mocks/ に作成
@@ -67,8 +67,8 @@ Codexセッション内でSELF-REVIEWがなければ、子Codexを起動せず�
   後で比較・参照する節目を残す        → ::checkpoint（Git状態・差分・workflowを保存）
   次の担当・次回へ作業を渡す          → ::handoff（Working Memoryに現在地と次の一手を整理）
   検証済み変更を公開用draft PRにする  → ::publish（commit・push・draft PR作成）
-  修正からPR review完了まで連続実行    → ::publish --loop（最大3回。曖昧・高リスクなら停止）
-  Codex通知音を確認・変更する        → ::sound（試聴。名前指定で変更、--listで一覧）
+  修正からPR review完了まで連続実行    → ::publish --loop（回数で停止せず、具体的な判断・権限が必要な時だけ質問）
+  Codex通知音を確認・変更する        → ::sound（--play 名前で個別試聴、名前指定で変更）
 
 通常フロー:
   新機能・設計が未確定       → ::plan → （同一依頼で::sdd_tddを起動して採用）→ ::scope → ::publish → ::pr-review
@@ -83,3 +83,5 @@ EXECUTED がなければ疑似コマンドの実行は未確認です。失敗�
 [AgentSkills][PROMPT][END] ::help
 [AgentSkills][EXECUTED] ::help
 ```
+
+続行基準: 推奨が一つなら確認せず実行。複数の選択肢を既存指示・根拠で決められない場合は、選択肢と違いを示して停止。
