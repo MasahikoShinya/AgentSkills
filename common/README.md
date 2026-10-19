@@ -147,7 +147,7 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 
 `::plan`は依頼本文を含む`SDD Handoff`付きの下書きを`docs/plans/`へ作ります。ユーザーが同じ依頼本文で`::sdd_tdd`を起動すると、該当する下書きが1件だけある場合はその起動が採用操作となります。`::sdd_tdd`は下書きの調査結果を読み、下書きで名指しされた証拠と作成後の変更だけを確認して`SESSION_BRIEF.md`へ確定仕様を移します。計画時の広い調査は繰り返しません。候補が複数、または未決事項・検証が曖昧な場合は停止します。該当する下書きがなければ従来どおり単独のSpecから始めます。
 
-`::sdd_tdd`は、期待動作・対象・非対象が明確な場合にSpecからGateまでを連続して実行します。commit、push、mergeはしません。仕様の曖昧さ、既存差分の混在、test証跡の不足、最終reviewの`WARNING` / `BLOCKER`、最終GATE/HOOKの`BLOCKER` / `FAIL`、security・外部公開・不可逆操作では停止し、失敗時は原因分析だけを行います。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら表示のみで連続実行を止めません。
+`::sdd_tdd`は、期待動作・対象・非対象が明確な場合にSpecからGateまでを連続して実行します。`::sdd_tdd <依頼>`そのものが仕様記録、対象内のtest/実装、review、明示対象pathのstage、Gateの許可であり、各phaseの境界で会話上の再確認は行いません。test・review・gate・hookの失敗は原因分析、対象内の最小修正、再実行を自動で続けます。仕様・安全性の判断が必要な場合だけ停止します。commit、push、mergeはしません。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら表示のみで連続実行を止めません。
 
 `::resolve --step` と `::sdd_tdd --step` は現在の1 Phaseだけを実行して停止します。通常コマンドは、同じ依頼本文と整合する未完了 state があれば記録済みの次Phaseから自動再開します。stateは `.git/agentskills/workflows/` に保存され、依頼本文、開始時のstaged files、`SESSION_BRIEF.md`のhashを確認します。stateがない、または前回 state が完了済みなら新規開始し、異なる依頼またはbriefが変更されている場合は停止します。旧kitが作成したrequest identityのない state は従来どおり表示される `discard-legacy` command で破棄できます。
 

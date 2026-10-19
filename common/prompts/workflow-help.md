@@ -53,7 +53,7 @@ Git 操作によるトリガー（Hook 導入後）
 commit 可否: 最終 GATE / HOOK が PASS なら続行可。BLOCKER / FAIL なら commit は停止。WARNING は最終 status を確認する。
 review policy: auto は収束フローの SELF-REVIEW を使う。independent は外部reviewerを必須にする。
 Codexセッション内でSELF-REVIEWがなければ、子Codexを起動せず即時BLOCKERになる。
-既定: ::sdd_tdd / ::resolve は連続モード。仕様・対象が明確ならGateまで進める。曖昧さ、既存差分混在、検証不足、最終review WARNING/BLOCKER、最終GATE/HOOK BLOCKER/FAIL、高リスク操作では停止する。個別checkのWARNINGは最終GATE/HOOKがPASSなら表示のみ。commitはしない。
+既定: ::sdd_tdd / ::resolve は連続モード。仕様・対象が明確ならGateまで進める。`::sdd_tdd <依頼>`は仕様記録・対象内のtest/実装・review・明示対象のstage・Gateを一度に許可し、phase間で「進めてよいか」は聞かない。test・review・gate・hookの失敗は原因分析→対象内の最小修正→再実行を自動で続け、仕様・安全性の判断が必要な場合だけ停止する。個別checkのWARNINGは最終GATE/HOOKがPASSなら表示のみ。commitはしない。
 --step: 現在の1 Phaseだけを実行して停止する。次回の通常コマンドは、整合する未完了workflow stateがあれば記録済みの次Phaseから連続実行する。stateまたはSESSION_BRIEFの整合性がない場合は停止する。
 成長: ::resolveは関連verification後に再発防止を一度だけ分類してPREVENTIONを表示する。REVIEW_LESSONS.mdには、テスト・ルール・workflow guardだけでは意図が分からない再利用可能な防止策だけを残す。::resolve / ::sdd_tdd は対象に関係する項目だけを参照する。
 使い分け:
