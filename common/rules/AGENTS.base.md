@@ -25,6 +25,20 @@ This line confirms pseudo-command execution only. It does not mean that a review
 
 For a commit gate or hook, commit only after its final status is `PASS`. `BLOCKER` and `FAIL` stop that commit attempt. A `WARNING` alone does not determine commit eligibility; inspect the final `GATE` or `HOOK` status.
 
+## Continuous Execution and Recovery
+
+Choose the next action from the user instructions, confirmed scope, and current evidence. If one recommended action is clear, execute it without asking for confirmation; the existence of theoretical alternatives does not require a pause. If multiple viable options remain and those inputs do not justify choosing one, stop the dependent work and present the concrete options, their tradeoffs, and the decision needed. Do not invent a preference to eliminate a real unresolved choice, and do not manufacture options merely to ask permission. Continue independent work while awaiting the decision. This rule governs judgment within the authorized task; it does not supply unavailable credentials or authorize operations outside the request.
+
+Before yielding for user input, apply the continuation test: if the only useful reply would be “continue”, “proceed”, or “進めて”, do not stop. Execute that next action under the existing request. Ordinary implementation choices with one evidence-backed recommendation, target discovery, cause investigation, missing checks that can be run, and correctable review findings are agent work. Unresolved choices between viable options follow the decision rule above. Explicit analysis-only commands remain analysis-only.
+
+The default invocation authorizes all required phases and bounded corrections within the confirmed scope. Progress reports, analysis results, and nested prompt `END` markers are not permission checkpoints; continue the parent workflow until its completion condition is met. Preserve explicit `--step` stops.
+
+Before treating a test, review, gate, or hook failure as a workflow blocker, read `failure-analysis.md` and analyze the evidence without editing. Then apply the smallest evidence-backed, in-scope correction and rerun the affected verification, diff review, staged review, and gate as applicable. Continue recovery until the requested completion condition is met; there is no fixed retry or remediation count. A repeated failure or uncertain cause requires further investigation, a revised hypothesis, or a different verification method, not a request to continue. Do not repeat an identical failed action without new evidence. Ask the user only when progress requires a concrete product or scope decision unavailable from existing instructions, a conflict over inseparable user changes, unavailable credentials or external input, or authorization for an operation outside the request. Before stopping, complete all independent authorized work and identify why further investigation or another authorized approach cannot remove that dependency. Never bypass a failing gate, weaken expectations, or fabricate review evidence. A failed commit attempt remains stopped until the gate passes.
+
+Recovery happens within the recorded current phase; do not advance failed phases or rewind state. Revalidate downstream evidence after any correction. Review prompts remain read-only; the parent workflow performs corrections after the review returns. The expected failing test in SDD Phase 2 is required evidence, not a recovery failure.
+
+When blocked, state the concrete missing decision, evidence, or permission and the smallest input needed. Do not ask only for “continue” when existing authorization is sufficient. A continuation request resumes the active recorded request; use its stored original request text for state checks rather than treating “continue” as a new request identity.
+
 ## Working Memory
 
 For an ordinary request that requires project inspection, planning, or a change, read the project-root `.agents/WORKING_MEMORY.md` when it exists before acting. Do not read or update it for a purely conversational or factual response with no project work.
@@ -57,9 +71,9 @@ For `::ui-mock` and `::test-plan`, select `Expansion`. They produce only draft s
 
 For `::resolve`, select `Convergence`, read `.agentskills/prompts/resolve.md`, and use an existing `SESSION_BRIEF.md` only when it applies. Read project-root `REVIEW_LESSONS.md` when present, applying only lessons relevant to the target. Do not create a task or new specification artifact solely because `::resolve` was used. `::resolve <request>` uses continuous mode by default only when the request has a confirmed, bounded expected behavior and scope; otherwise report `PROMPT BLOCKER` without editing. It does not create or update `SESSION_BRIEF.md` solely for this command and does not commit, push, or merge. `::resolve --step <request>` executes only one Phase. `::resolve --reset` accepts no request text and cannot be combined with `--step`; invoke only `.agentskills/workflows/workflow-state.sh reset resolve`, report its output, and make no changes beyond the workflow state files it archives. Every normal or step invocation must check `.agentskills/workflows/workflow-state.sh show resolve "<exact request>"` first: resume an unfinished state at its recorded next phase only when the state request matches, or start a new state when none exists or the previous state is complete.
 
-For `::publish`, read `.agentskills/prompts/publish.md`. The original `::publish` request authorizes its displayed commit, push, and draft PR creation; do not request a second conversational confirmation. `::publish --loop` may loop through bounded `::pr-review` findings, `::resolve`, and updates to the same PR, for at most three remediation cycles. Never merge, mark a draft ready, comment on a PR, or create a second PR for the same branch.
+For `::publish`, read `.agentskills/prompts/publish.md`. The original `::publish` request authorizes its displayed commit, push, and draft PR creation; do not request a second conversational confirmation. `::publish --loop` may loop through bounded `::pr-review` findings, `::resolve`, and updates to the same PR, until PR review is `OK`, without a fixed remediation count. Never merge, mark a draft ready, comment on a PR, or create a second PR for the same branch.
 
-For default continuous `::resolve`, inspect the requested outcome, evidence, target files, non-target files, current Git state, and project-native verification before editing. After verification passes, run diff review, stage only explicit task paths after `OK`, perform the staged self-review, and run the gate. Stop for mixed existing changes, missing verification, final review `WARNING` / `BLOCKER`, final `GATE` / `HOOK` `BLOCKER` / `FAIL`, security, or irreversible-operation evidence requiring judgment. Individual gate-check `WARNING` output is informational when the final `GATE` or `HOOK` status is `PASS`.
+For default continuous `::resolve`, inspect the requested outcome, evidence, target files, non-target files, current Git state, and project-native verification before editing. After verification passes, run diff review, stage only explicit task paths after `OK`, perform the staged self-review, and run the gate. Only when an actual user or external dependency remains after investigation and recovery, stop for mixed existing changes, missing verification, final review `WARNING` / `BLOCKER`, final `GATE` / `HOOK` `BLOCKER` / `FAIL`, security, or irreversible-operation evidence requiring judgment. Individual gate-check `WARNING` output is informational when the final `GATE` or `HOOK` status is `PASS`.
 
 For `::resolve` and `::sdd_tdd`, check `agentskills.reviewPolicy` before the gate. Under the default `auto` policy, record an `OK` staged self-review as `codex-self-review` for the current diff and label it `SELF-REVIEW`; it is not an independent review. Under `independent`, do not record a self-review for gate approval; use an external reviewer runtime.
 
@@ -72,7 +86,7 @@ For `::sdd_tdd`, select `Convergence` and follow this strict sequence. Read proj
 5. Write the adopted specification to `SESSION_BRIEF.md` before Phase 2.
 6. Obtain failing-test or reproduction evidence before Phase 3.
 7. Keep the mode fixed in `SESSION_BRIEF.md`; do not switch modes silently.
-8. In default continuous mode, stop before further edits if scope separation, test selection, final review `WARNING` / `BLOCKER`, final `GATE` / `HOOK` `BLOCKER` / `FAIL`, security, or irreversible-operation evidence requires a judgment. Individual gate-check `WARNING` output is informational when the final `GATE` or `HOOK` status is `PASS`. Run `failure-analysis.md` after a failure, but do not make a consecutive correction in that run.
+8. In default continuous mode, follow bounded recovery first for actionable failures, and stop if unresolved scope separation, test selection, final review `WARNING` / `BLOCKER`, final `GATE` / `HOOK` `BLOCKER` / `FAIL`, security, or irreversible-operation evidence requires a judgment. Individual gate-check `WARNING` output is informational when the final `GATE` or `HOOK` status is `PASS`. Run `failure-analysis.md` before each bounded recovery correction; follow Continuous Execution and Recovery before declaring a blocker.
 
 ## Phase Definitions
 
@@ -110,13 +124,13 @@ Diff review is mandatory. Compare `SESSION_BRIEF.md` with:
 - `git diff --cached`
 - untracked files that may belong to the task
 
-Return `OK`, `WARNING`, or `BLOCKER` with concrete evidence. `OK` may proceed. `WARNING` requires user judgment. `BLOCKER` stops the workflow.
+Return `OK`, `WARNING`, or `BLOCKER` with concrete evidence. `OK` may proceed. `WARNING` requires evidence-based disposition: the parent workflow may correct bounded findings and repeat review; unresolved scope or product decisions require user judgment. `BLOCKER` prevents advancing; the parent workflow may recover bounded findings under Continuous Execution and Recovery, otherwise stop.
 
 An independent reviewer must not assume the parent conversation, implementation intent, reasoning, or prior attempts. It may use only `AGENTS.md`, `SESSION_BRIEF.md`, Git status and diffs, and necessary current file contents. It must not modify code, staging, tests, or the brief.
 
 For a pull request review, use `::pr-review [PR-number-or-URL]`. Read the matching pull-request prompt, inspect PR metadata, checks, and the base/head diff through `gh`, then return `OK`, `WARNING`, or `BLOCKER`. Do not merge, push, comment on, or edit a PR unless the user separately requests that operation.
 
-On test, review, gate, or hook failure, do not make consecutive fixes. Read `.agentskills/prompts/failure-analysis.md`, analyze the cause without code changes, and obtain user permission before applying the next fix.
+On test, review, gate, or hook failure, analyze without editing first, then follow Continuous Execution and Recovery. Existing authorization covers bounded corrections; ask only for a missing decision or new authorization.
 
 ## Pseudo-Commands
 
@@ -136,7 +150,7 @@ On test, review, gate, or hook failure, do not make consecutive fixes. Read `.ag
 | `::scope` | `.agentskills/prompts/scope.md` |
 | `::checkpoint <name>` | `.agentskills/prompts/checkpoint.md` |
 | `::publish [--loop]` | `.agentskills/prompts/publish.md` |
-| `::sound [<name>|--list]` | `.agentskills/prompts/sound.md` |
+| `::sound [<name>|--list|--play <name>]` | `.agentskills/prompts/sound.md` |
 | `::sdd_tdd [--step] <request>` | `.agentskills/prompts/sdd_tdd.md` |
 | `::ui-mock` | `.agentskills/prompts/ui-mock.md` |
 | `::test-plan` | `.agentskills/prompts/test-plan.md`; use `test-orchestrator` when executable, otherwise the Codex fallback |

@@ -143,11 +143,11 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 
 擬似コマンドはslash commandや実行ファイルではありません。自動ロードされた`AGENTS.md`が対応する`prompts/*.md`またはgateへ配送します。
 
-`::resolve`はレビュー指摘・不具合・確定した限定修正を扱い、期待動作・対象・非対象が明確なら、検証、review、明示的な対象pathのstage、gateまで連続実行します。新しい仕様書やタスクは作らず、`SESSION_BRIEF.md`も新規作成・更新しません。commit、push、mergeもしません。仕様の曖昧さ、既存差分の混在、検証不足、最終reviewの`WARNING` / `BLOCKER`、最終GATE/HOOKの`BLOCKER` / `FAIL`、security・外部公開・不可逆操作では停止します。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら表示のみです。`::sdd_tdd`は厳格な収束フローであり、Phase 1で採用仕様を`SESSION_BRIEF.md`へ保存してから、失敗テスト、実装、review、gateへ進みます。
+`::resolve`はレビュー指摘・不具合・確定した限定修正を扱い、期待動作・対象・非対象が明確なら、検証、review、明示的な対象pathのstage、gateまで連続実行します。新しい仕様書やタスクは作らず、`SESSION_BRIEF.md`も新規作成・更新しません。commit、push、mergeもしません。限定修正・再検証で解消できない仕様の曖昧さ、既存差分の混在、検証不足、最終reviewの`WARNING` / `BLOCKER`、最終GATE/HOOKの`BLOCKER` / `FAIL`、security・外部公開・不可逆操作では停止します。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら表示のみです。`::sdd_tdd`は厳格な収束フローであり、Phase 1で採用仕様を`SESSION_BRIEF.md`へ保存してから、失敗テスト、実装、review、gateへ進みます。
 
 `::plan`は依頼本文を含む`SDD Handoff`付きの下書きを`docs/plans/`へ作ります。ユーザーが同じ依頼本文で`::sdd_tdd`を起動すると、該当する下書きが1件だけある場合はその起動が採用操作となります。`::sdd_tdd`は下書きの調査結果を読み、下書きで名指しされた証拠と作成後の変更だけを確認して`SESSION_BRIEF.md`へ確定仕様を移します。計画時の広い調査は繰り返しません。候補が複数、または未決事項・検証が曖昧な場合は停止します。該当する下書きがなければ従来どおり単独のSpecから始めます。
 
-`::sdd_tdd`は、期待動作・対象・非対象が明確な場合にSpecからGateまでを連続して実行します。commit、push、mergeはしません。仕様の曖昧さ、既存差分の混在、test証跡の不足、最終reviewの`WARNING` / `BLOCKER`、最終GATE/HOOKの`BLOCKER` / `FAIL`、security・外部公開・不可逆操作では停止し、失敗時は原因分析だけを行います。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら表示のみで連続実行を止めません。
+`::sdd_tdd`は、期待動作・対象・非対象が明確な場合にSpecからGateまでを連続して実行します。commit、push、mergeはしません。限定修正・再検証で解消できない仕様の曖昧さ、既存差分の混在、test証跡の不足、最終reviewの`WARNING` / `BLOCKER`、最終GATE/HOOKの`BLOCKER` / `FAIL`、security・外部公開・不可逆操作では停止し、失敗時は原因分析後、確定範囲内の最小修正と再検証を完了まで続けます。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら表示のみで連続実行を止めません。
 
 `::resolve --step` と `::sdd_tdd --step` は現在の1 Phaseだけを実行して停止します。通常コマンドは、同じ依頼本文と整合する未完了 state があれば記録済みの次Phaseから自動再開します。stateは `.git/agentskills/workflows/` に保存され、依頼本文、開始時のstaged files、`SESSION_BRIEF.md`のhashを確認します。stateがない、または前回 state が完了済みなら新規開始し、異なる依頼またはbriefが変更されている場合は停止します。旧kitが作成したrequest identityのない state は従来どおり表示される `discard-legacy` command で破棄できます。
 
@@ -161,9 +161,9 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 
 `::publish`は、scope・検証・review・gateの証拠を確認してから、対象path、commit message、push先、draft PRタイトルを表示し、commit、push、draft PR作成を一括実行します。`::publish`の呼び出し自体がこの操作の許可であり、会話での再確認は求めません。既存の同一ブランチPRがあれば再利用し、mergeはしません。作成または再利用したPRはローカル記録されるため、引数なしの`::pr-review`はそのPRを最優先で選びます。
 
-`::publish --loop`は、公開後にPR reviewを実行し、根拠が明確で限定された指摘だけを`::resolve`で修正して、同じPRへ再公開・再reviewします。PR reviewが`OK`になるまで、最大3回の修正サイクルを連続実行します。曖昧・対象外・高リスク・繰り返し・新規の無関係な指摘、またはcheck・検証・review・gateの失敗では停止します。merge、draft解除、PRコメント、同一ブランチの2本目のPR作成は行いません。
+`::publish --loop`は、公開後にPR reviewを実行し、根拠が明確で限定された指摘だけを`::resolve`で修正して、同じPRへ再公開・再reviewします。PR reviewが`OK`になるまで、固定回数で打ち切らず修正サイクルを連続実行します。同じ指摘や失敗は追加調査して方針を見直します。既存指示で決められない仕様判断、入手不能な外部入力、依頼外の操作権限が必要な場合だけ停止します。merge、draft解除、PRコメント、同一ブランチの2本目のPR作成は行いません。
 
-`::sound`はWindows標準WAVを名前順に試聴します。`::sound --list`は一覧だけを表示し、`::sound Ring02`はグローバルなCodex通知音を変更します。従来の`::sound --set Ring02`も使えます。リポジトリやGit状態は変更しません。
+`::sound`はmacOSの標準AIFF音またはWindowsの標準WAV音を名前順に試聴します。`::sound --list`は一覧だけを表示し、`::sound --play Funk`はFunkだけを1回試聴して設定を変更しません。macOSでは`::sound Funk`、Windowsでは`::sound Ring02`でグローバルなCodex完了通知音を変更します。Macの推奨音はFunkを2回再生する約4秒の通知です。従来の`::sound --set <名前>`も使えます。既存の`notify`連携は引き継ぎます。入力待ちはCLIの通知またはデスクトップアプリの通知設定に依存します。コマンド実行時にリポジトリやGit状態は変更しません。
 
 `::ask <質問>`は回答専用です。答えに必要なファイル、Git状態、ログ、設定、公式情報は読み取れますが、実装、計画作成、タスク化、設定変更、Git操作、外部サービスへの変更は行いません。
 
@@ -343,3 +343,7 @@ Codexはルート`AGENTS.md`を自動ロードします。pre-commitでは親セ
 ```bash
 bash .agentskills/tests/run-tests.sh
 ```
+
+通常実行では進捗報告や子promptの終了で親workflowを止めません。test・review・gate失敗は、原因分析後に根拠のある限定修正と再検証を完了まで続けます。同じ失敗や原因不明は追加調査と方針変更で対応し、回数では打ち切りません。既存指示で解決できない仕様判断、分離不能なユーザー差分、入手不能な外部入力、依頼外の権限が必要な場合だけ具体的な依存を示して停止します。返答が「進めて」だけで済む停止はせず、その次の作業を自動実行します。`--step`は従来どおり停止します。`::publish`は対象が明確なら不足する検証・review・gateと同じ依頼の未完了workflowを先に完了します。「進めて」は元の依頼本文を使って再開し、新規依頼にはしません。
+
+続行・停止の判断基準は、既存指示・確定範囲・証拠から推奨する次の行動が一つに定まるかです。一つに定まる場合は確認せず実行します。複数の有効な選択肢が残り、根拠で決められない場合は、その選択に依存する作業を止め、選択肢・トレードオフ・必要な判断を提示します。理論上の代案があるだけでは止めず、実際の未決事項を勝手な好みで決めません。
