@@ -10,7 +10,7 @@ description: Claude Code用のコードレビュースキル。共通観点は s
 ## Claude Code 固有の運用
 
 - `code-reviewer` は Claude 側の独立レビューとクロスレスポンスを担当する
-- `code-critic` は Codex MCP を使った独立レビューとクロスレスポンスを担当する
+- `code-critic` は Codex CLI（`codex exec`、読み取り専用）を使った独立レビューとクロスレスポンスを担当する
 - Phase 2 の独立レビューと Phase 3 のクロスレスポンスは、可能なら並列で実行する
 - 2つの結果をメインコンテキストで統合し、Agreed / Single / Disputed に分類する
-- Codex MCP が使えない場合は、単独レビューとして実行し、その制約をレポートに明記する
+- Codex CLI が使えない場合（未インストール・未ログイン・実行失敗）は、単独レビューとして実行し、その制約をレポートに明記する

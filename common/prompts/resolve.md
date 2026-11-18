@@ -9,6 +9,20 @@ Source: .agentskills/prompts/resolve.md
 
 Use this prompt for a bounded review finding, regression, or confirmed defect. Do not create a task, a new design document, or a new `SESSION_BRIEF.md` solely because this command was used. If an existing brief applies, use it as the current specification. Read project-root `REVIEW_LESSONS.md` when present and apply only lessons relevant to the requested target.
 
+## Continuous Execution and Recovery
+
+Choose the next action from the user instructions, confirmed scope, and current evidence. If one recommended action is clear, execute it without asking for confirmation; the existence of theoretical alternatives does not require a pause. If multiple viable options remain and those inputs do not justify choosing one, stop the dependent work and present the concrete options, their tradeoffs, and the decision needed. Do not invent a preference to eliminate a real unresolved choice, and do not manufacture options merely to ask permission. Continue independent work while awaiting the decision. This rule governs judgment within the authorized task; it does not supply unavailable credentials or authorize operations outside the request.
+
+Before yielding for user input, apply the continuation test: if the only useful reply would be “continue”, “proceed”, or “進めて”, do not stop. Execute that next action under the existing request. Ordinary implementation choices with one evidence-backed recommendation, target discovery, cause investigation, missing checks that can be run, and correctable review findings are agent work. Unresolved choices between viable options follow the decision rule above. Explicit analysis-only commands remain analysis-only.
+
+The default invocation authorizes all required phases and bounded corrections within the confirmed scope. Progress reports, analysis results, and nested prompt `END` markers are not permission checkpoints; continue the parent workflow until its completion condition is met. Preserve explicit `--step` stops.
+
+Before treating a test, review, gate, or hook failure as a workflow blocker, read `failure-analysis.md` and analyze the evidence without editing. Then apply the smallest evidence-backed, in-scope correction and rerun the affected verification, diff review, staged review, and gate as applicable. Continue recovery until the requested completion condition is met; there is no fixed retry or remediation count. A repeated failure or uncertain cause requires further investigation, a revised hypothesis, or a different verification method, not a request to continue. Do not repeat an identical failed action without new evidence. Ask the user only when progress requires a concrete product or scope decision unavailable from existing instructions, a conflict over inseparable user changes, unavailable credentials or external input, or authorization for an operation outside the request. Before stopping, complete all independent authorized work and identify why further investigation or another authorized approach cannot remove that dependency. Never bypass a failing gate, weaken expectations, or fabricate review evidence. A failed commit attempt remains stopped until the gate passes.
+
+Recovery happens within the recorded current phase; do not advance failed phases or rewind state. Revalidate downstream evidence after any correction. Review prompts remain read-only; the parent workflow performs corrections after the review returns. The expected failing test in SDD Phase 2 is required evidence, not a recovery failure.
+
+When blocked, state the concrete missing decision, evidence, or permission and the smallest input needed. Do not ask only for “continue” when existing authorization is sufficient. A continuation request resumes the active recorded request; use its stored original request text for state checks rather than treating “continue” as a new request identity.
+
 ## Invocation Modes
 
 `::resolve <request>` is the default continuous mode. Before editing, report the requested outcome, evidence, target files, non-target files, verification, and whether the request is sufficiently bounded. If the required behavior is unclear, report `PROMPT BLOCKER` and ask for clarification. When the request is confirmed and bounded, continue through Gate without phase-by-phase permission. It does not create or update `SESSION_BRIEF.md` solely for this command, and it never commits, pushes, or merges.
@@ -29,7 +43,7 @@ Execute only the phase reported as `Next phase`:
 
 In step mode, stop immediately after completing and recording the selected phase. In default continuous mode, proceed through the next recorded phase in order.
 
-In default continuous mode, stop with `PROMPT BLOCKER` instead of continuing when any of the following applies:
+In default continuous mode, attempt the bounded recovery above first for actionable verification or review failures. Stop with `PROMPT BLOCKER` only when investigation and recovery establish an actual user or external dependency in the following:
 
 - expected behavior, scope, or non-targets are ambiguous;
 - existing staged or unstaged changes cannot be separated from this task;
@@ -39,7 +53,9 @@ In default continuous mode, stop with `PROMPT BLOCKER` instead of continuing whe
 - the final `GATE` or `HOOK` status is `BLOCKER` or `FAIL`;
 - the correction requires a destructive, externally visible, security-sensitive, or otherwise irreversible operation.
 
-An individual gate check may emit `WARNING` for information. Report it, but continue when the final `GATE` or `HOOK` status is `PASS`. After a test, review, gate, or hook failure, read `failure-analysis.md` and report the analysis only. Do not apply another correction in the same continuous run.
+These statuses are diagnostics, not automatic end-of-turn conditions. Investigate and correct them under the existing request; an unresolved dependency must name the actual missing input. Risk labels alone do not revoke authorization already given for the operation.
+
+An individual gate check may emit `WARNING` for information. Report it, but continue when the final `GATE` or `HOOK` status is `PASS`. After a test, review, gate, or hook failure, follow Continuous Execution and Recovery; analysis must precede each correction.
 
 In step mode, make the smallest coherent change after the user has authorized the correction. In default continuous mode, make it immediately after confirming the request is bounded. Use existing relevant tests when available, or the smallest project-native verification for the target. Do not weaken test expectations for convenience. Do not perform unrelated refactoring.
 
