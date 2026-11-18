@@ -11,6 +11,8 @@ Accepted forms:
 ::publish --loop
 ```
 
+Both `::publish` and `::publish --loop` are complete invocations. Do not require, suggest, or wait for added wording such as `実行してください`, `実行して`, or `進めて`; those words do not change the requested operation or its authorization.
+
 The invocation also authorizes local preparation of the explicit publication scope: run missing project-native verification, diff review, explicit-path staging, staged review, and gate. Follow AGENTS.md Continuous Execution and Recovery for bounded failures. Do not fabricate evidence, bypass independent-review policy, or start unrelated implementation. If a matching unfinished workflow exists, resume it using its stored exact request and complete it before publishing; a different or invalid workflow remains a blocker. Nested read-only prompts return to this procedure without ending the publish operation.
 
 First run `::scope` procedure and inspect Git status, staged and unstaged diffs, applicable `SESSION_BRIEF.md`, workflow state, review, and final gate evidence. Stop with `PROMPT BLOCKER` if the scope is mixed, candidate paths are not explicit, or required verification/review/gate evidence or workflow completion remains unavailable after authorized preparation and bounded recovery. Never stage unrelated paths and never use `git add .`, `git add -A`, or unrestricted `git add -u`.

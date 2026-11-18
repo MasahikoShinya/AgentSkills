@@ -128,6 +128,7 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 ::checkpoint <名前>
 ::publish
 ::publish --loop
+::sdd_publish <確定した依頼>
 ::sound [<名前>|--list]
 ::sdd_tdd <確定した依頼>
 ::sdd_tdd --step <確定した依頼>
@@ -147,9 +148,11 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 
 `::plan`は依頼本文を含む`SDD Handoff`付きの下書きを`docs/plans/`へ作ります。ユーザーが同じ依頼本文で`::sdd_tdd`を起動すると、該当する下書きが1件だけある場合はその起動が採用操作となります。`::sdd_tdd`は下書きの調査結果を読み、下書きで名指しされた証拠と作成後の変更だけを確認して`SESSION_BRIEF.md`へ確定仕様を移します。計画時の広い調査は繰り返しません。候補が複数、または未決事項・検証が曖昧な場合は停止します。該当する下書きがなければ従来どおり単独のSpecから始めます。
 
-`::sdd_tdd`は、期待動作・対象・非対象が明確な場合にSpecからGateまでを連続して実行します。commit、push、mergeはしません。限定修正・再検証で解消できない仕様の曖昧さ、既存差分の混在、test証跡の不足、最終reviewの`WARNING` / `BLOCKER`、最終GATE/HOOKの`BLOCKER` / `FAIL`、security・外部公開・不可逆操作では停止し、失敗時は原因分析後、確定範囲内の最小修正と再検証を完了まで続けます。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら表示のみで連続実行を止めません。
+`::sdd_tdd`は、期待動作・対象・非対象が明確な場合にSpecからGateまでを連続して実行します。`::sdd_tdd <依頼>`そのものが仕様記録、対象内のtest/実装、review、明示対象pathのstage、Gateの許可であり、各phaseの境界で会話上の再確認は行いません。test・review・gate・hookの失敗は原因分析、対象内の最小修正、再実行を自動で続けます。仕様・安全性の判断が必要な場合だけ停止します。commit、push、mergeはしません。個別gate checkの`WARNING`は、最終GATE/HOOKが`PASS`なら表示のみで連続実行を止めません。
 
 `::resolve --step` と `::sdd_tdd --step` は現在の1 Phaseだけを実行して停止します。通常コマンドは、同じ依頼本文と整合する未完了 state があれば記録済みの次Phaseから自動再開します。stateは `.git/agentskills/workflows/` に保存され、依頼本文、開始時のstaged files、`SESSION_BRIEF.md`のhashを確認します。stateがない、または前回 state が完了済みなら新規開始し、異なる依頼またはbriefが変更されている場合は停止します。旧kitが作成したrequest identityのない state は従来どおり表示される `discard-legacy` command で破棄できます。
+
+`::sdd_tdd 進めて`、`::sdd_tdd 進めてください`、`::sdd_tdd 続けて`、`::sdd_tdd 続行`、`::sdd_tdd 再開`は同じ継続指示です。未完了の`::sdd_tdd`が1件なら保存済みの依頼で再開し、なければ該当するDraft handoffが1件だけある場合にその依頼を採用します。対象が一意でない場合だけ、進める具体的な依頼を確認します。
 
 異なる依頼の未完了`resolve` stateを明示的に破棄するには、依頼文を付けずに `::resolve --reset` を使います。実行前にworkflow、保存済みのrequest identity、next phase、記録日時、開始時のstage対象、state pathを表示し、`resolve.state`と`resolve.initial-staged`だけを`.git/agentskills/workflows/archive/resolve-<timestamp>.*`へ退避します。ソース、作業ツリー、stage、commit、branch、PR、Git設定は変更しません。stateがない場合、`--step`との併用、または依頼文を付けた呼び出しは`BLOCKER`です。
 
@@ -159,9 +162,9 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 
 `::verify <対象>`は変更後の動作・品質を確認するためにtest・lint・typecheck・buildを実行します。`::scope`はcommitやPRの前に、BriefとGit差分を照合して対象外・混在・未stageの変更を検出します。つまりverifyは「動作が正しいか」、scopeは「変更範囲が正しいか」です。`::checkpoint`は比較用の節目を保存し、`::handoff`は次回や別担当が再開できるように現在地と次の一手を整理します。
 
-`::publish`は、scope・検証・review・gateの証拠を確認してから、対象path、commit message、push先、draft PRタイトルを表示し、commit、push、draft PR作成を一括実行します。`::publish`の呼び出し自体がこの操作の許可であり、会話での再確認は求めません。既存の同一ブランチPRがあれば再利用し、mergeはしません。作成または再利用したPRはローカル記録されるため、引数なしの`::pr-review`はそのPRを最優先で選びます。
+`::publish`は、scope・検証・review・gateの証拠を確認してから、対象path、commit message、push先、draft PRタイトルを表示し、commit、push、draft PR作成を一括実行します。`::publish`単体が完結した起動と許可です。`実行してください`、`実行して`、`進めて`などの追加文言を要求せず、会話での再確認も求めません。既存の同一ブランチPRがあれば再利用し、mergeはしません。作成または再利用したPRはローカル記録されるため、引数なしの`::pr-review`はそのPRを最優先で選びます。
 
-`::publish --loop`は、公開後にPR reviewを実行し、根拠が明確で限定された指摘だけを`::resolve`で修正して、同じPRへ再公開・再reviewします。PR reviewが`OK`になるまで、固定回数で打ち切らず修正サイクルを連続実行します。同じ指摘や失敗は追加調査して方針を見直します。既存指示で決められない仕様判断、入手不能な外部入力、依頼外の操作権限が必要な場合だけ停止します。merge、draft解除、PRコメント、同一ブランチの2本目のPR作成は行いません。
+`::publish --loop`単体も完結した起動です。公開後にPR reviewを実行し、根拠が明確で限定された指摘だけを`::resolve`で修正して、同じPRへ再公開・再reviewします。PR reviewが`OK`になるまで、固定回数で打ち切らず修正サイクルを連続実行します。同じ指摘や失敗は追加調査して方針を見直します。既存指示で決められない仕様判断、入手不能な外部入力、依頼外の操作権限が必要な場合だけ停止します。merge、draft解除、PRコメント、同一ブランチの2本目のPR作成は行いません。
 
 `::sound`はmacOSの標準AIFF音またはWindowsの標準WAV音を名前順に試聴します。`::sound --list`は一覧だけを表示し、`::sound --play Funk`はFunkだけを1回試聴して設定を変更しません。macOSでは`::sound Funk`、Windowsでは`::sound Ring02`でグローバルなCodex完了通知音を変更します。Macの推奨音はFunkを2回再生する約4秒の通知です。従来の`::sound --set <名前>`も使えます。既存の`notify`連携は引き継ぎます。入力待ちはCLIの通知またはデスクトップアプリの通知設定に依存します。コマンド実行時にリポジトリやGit状態は変更しません。
 
@@ -347,3 +350,5 @@ bash .agentskills/tests/run-tests.sh
 通常実行では進捗報告や子promptの終了で親workflowを止めません。test・review・gate失敗は、原因分析後に根拠のある限定修正と再検証を完了まで続けます。同じ失敗や原因不明は追加調査と方針変更で対応し、回数では打ち切りません。既存指示で解決できない仕様判断、分離不能なユーザー差分、入手不能な外部入力、依頼外の権限が必要な場合だけ具体的な依存を示して停止します。返答が「進めて」だけで済む停止はせず、その次の作業を自動実行します。`--step`は従来どおり停止します。`::publish`は対象が明確なら不足する検証・review・gateと同じ依頼の未完了workflowを先に完了します。「進めて」は元の依頼本文を使って再開し、新規依頼にはしません。
 
 続行・停止の判断基準は、既存指示・確定範囲・証拠から推奨する次の行動が一つに定まるかです。一つに定まる場合は確認せず実行します。複数の有効な選択肢が残り、根拠で決められない場合は、その選択に依存する作業を止め、選択肢・トレードオフ・必要な判断を提示します。理論上の代案があるだけでは止めず、実際の未決事項を勝手な好みで決めません。
+
+`::sdd_publish <依頼>` は `::sdd_tdd <依頼>` → `::publish --loop` を連続実行します。SDDの検証・review・Gateが成功しstateがcompleteになった場合だけ公開へ進みます。起動はcommit・push・draft PR作成と完了までの修正サイクルの許可を含み、再確認は求めません。各手順の停止条件は維持し、mergeはしません。公開段階で中断した場合は `::publish --loop` で再開します。symlink展開先は共通ルールの再読込で利用でき、copy展開先はkitの再展開が必要です。
