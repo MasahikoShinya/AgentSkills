@@ -128,6 +128,7 @@ cp .agentskills/config/AGENT_MODELS.template.md AGENT_MODELS.md
 ::checkpoint <名前>
 ::publish
 ::publish --loop
+::sdd_publish <確定した依頼>
 ::sound [<名前>|--list]
 ::sdd_tdd <確定した依頼>
 ::sdd_tdd --step <確定した依頼>
@@ -345,3 +346,5 @@ Codexはルート`AGENTS.md`を自動ロードします。pre-commitでは親セ
 ```bash
 bash .agentskills/tests/run-tests.sh
 ```
+
+`::sdd_publish <依頼>` は `::sdd_tdd <依頼>` → `::publish --loop` を連続実行します。SDDの検証・review・Gateが成功しstateがcompleteになった場合だけ公開へ進みます。起動はcommit・push・draft PR作成と最大3回の修正サイクルの許可を含み、再確認は求めません。各手順の停止条件は維持し、mergeはしません。公開段階で中断した場合は `::publish --loop` で再開します。symlink展開先は共通ルールの再読込で利用でき、copy展開先はkitの再展開が必要です。

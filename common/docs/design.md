@@ -1148,3 +1148,7 @@ AgentSkillsに決定し、ローカルディレクトリとリモートリポジ
 - 小さい commit
 
 v0.1 の目標は、まず Markdown と shell script を整備し、ローカルリポジトリで Codex に実装させられる状態にすることである。
+
+### SDDから公開までの合成コマンド
+
+`::sdd_publish <依頼>` は `prompts/sdd_publish.md` に従い、連続SDDの正常完了（最終Gate PASS・state complete）後に `::publish --loop` を実行する。起動は両手順の許可を含む。各手順の停止条件と最大3回の修正上限を維持し、mergeしない。独自stateは追加せず、公開段階の再開は `::publish --loop` を使う。

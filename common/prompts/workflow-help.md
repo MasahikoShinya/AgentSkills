@@ -26,6 +26,7 @@ Display the following compact help exactly enough to identify each entry point. 
   ::publish                     単体でcommit、push、draft PR作成を一括実行。追加文言は不要。mergeしない
   ::publish --loop              単体でPR reviewがOKになるまで、最大3回の修正・再公開・再review
   ::sound [名前|--list]         省略=全音を順に試聴。名前=通知音変更、--list=一覧
+  ::sdd_publish <依頼>          sdd_tdd完了後にpublish --loopまで連続実行（draft PR、最大3回修正）
   ::sdd_tdd <依頼>              SESSION_BRIEF仕様 -> 失敗テスト -> 実装 -> レビュー -> ゲート
   ::sdd_tdd --step <依頼>       sdd_tddを1 Phaseだけ実行して停止
   ::ui-mock       静的HTMLのUIモックを docs/ui-mocks/ に作成

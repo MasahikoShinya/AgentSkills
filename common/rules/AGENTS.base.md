@@ -74,6 +74,8 @@ For `::sdd_tdd`, select `Convergence` and follow this strict sequence. Read proj
 7. Keep the mode fixed in `SESSION_BRIEF.md`; do not switch modes silently.
 8. In default continuous mode, test, review, gate, and hook failures require diagnosis, the smallest in-scope correction, and automatic re-verification rather than a conversational stop. Stop only when scope separation, test selection, a finding, security, or irreversible-operation evidence requires a product or safety judgment. Individual gate-check `WARNING` output is informational when the final `GATE` or `HOOK` status is `PASS`.
 
+For `::sdd_publish <request>`, select `Convergence` and read `.agentskills/prompts/sdd_publish.md`. The invocation authorizes continuous `::sdd_tdd` followed, only after successful completion and final Gate `PASS`, by `::publish --loop`. Preserve both procedures' scope checks and safety stops without a second conversational confirmation. Only the publish procedure may commit, push, or create a draft PR.
+
 ## Phase Definitions
 
 Expansion broadens options and clarifies requirements. Convergence satisfies a confirmed specification while minimizing change and regression risk.
@@ -136,6 +138,7 @@ For continuous `::sdd_tdd`, test, review, gate, or hook failures do not require 
 | `::scope` | `.agentskills/prompts/scope.md` |
 | `::checkpoint <name>` | `.agentskills/prompts/checkpoint.md` |
 | `::publish [--loop]` | `.agentskills/prompts/publish.md` |
+| `::sdd_publish <request>` | `.agentskills/prompts/sdd_publish.md` |
 | `::sound [<name>|--list]` | `.agentskills/prompts/sound.md` |
 | `::sdd_tdd [--step] <request>` | `.agentskills/prompts/sdd_tdd.md` |
 | `::ui-mock` | `.agentskills/prompts/ui-mock.md` |
